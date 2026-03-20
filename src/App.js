@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line
+  XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
 
 /* ══════════════════════════════════════════════════════
@@ -1322,7 +1322,7 @@ function ReportsPage({ data, isMobile }) {
 ══════════════════════════════════════════════════════ */
 function ExportPage({ data, isMobile }) {
   const [exported, setExported] = useState(null); // which dataset was just exported
-  const [previewKey, setPreviewKey] = useState(null);
+  const [previewKey] = useState(null);
 
   /* ── helpers ── */
   const triggerDownload = (content, filename, mime) => {
@@ -1459,7 +1459,6 @@ function ExportPage({ data, isMobile }) {
     setExported("all"); setTimeout(()=>setExported(null), 2800);
   };
 
-  const preview = previewKey ? DATASETS.find(d=>d.key===previewKey) : null;
 
   return (
     <div className="fade">
