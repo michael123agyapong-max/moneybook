@@ -1322,7 +1322,6 @@ function ReportsPage({ data, isMobile }) {
 ══════════════════════════════════════════════════════ */
 function ExportPage({ data, isMobile }) {
   const [exported, setExported] = useState(null); // which dataset was just exported
-  const [previewKey] = useState(null);
 
   /* ── helpers ── */
   const triggerDownload = (content, filename, mime) => {
