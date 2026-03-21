@@ -1371,7 +1371,6 @@ function ReportsPage({ isMobile }) {
   const buildForecast = () => {
     if (monthly.length === 0) return [];
     const last = monthly[monthly.length-1];
-    const prev = monthly[monthly.length-2] || last;
     // Average monthly growth from actual data
     const avgInc = monthly.reduce((s,m)=>s+m.i,0) / monthly.length;
     const avgExp = monthly.reduce((s,m)=>s+m.e,0) / monthly.length;
@@ -1467,7 +1466,6 @@ function ReportsPage({ isMobile }) {
               {/* Forecast summary */}
               {monthly.length > 0 && (() => {
                 const fc = buildForecast();
-                const lastReal = monthly[monthly.length-1];
                 const lastFc   = fc[fc.length-1];
                 const projProfit = lastFc ? lastFc.i - lastFc.e : 0;
                 return (
