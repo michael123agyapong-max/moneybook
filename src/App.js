@@ -495,7 +495,7 @@ function Dashboard({ isMobile }) {
   const totalInc  = income.reduce((s,i)=>s+(+i.amount),0);
   const totalExp  = expenses.reduce((s,e)=>s+(+e.amount),0);
   const net       = totalInc - totalExp;
-  const budgets   = data.budgets;
+  const budgets   = [];
   const activeBudget = budgets[0];
   const budgetSpent  = activeBudget ? activeBudget.categories.reduce((s,c)=>s+c.spent,0) : 0;
   const budgetLeft   = activeBudget ? activeBudget.totalCash - budgetSpent : 0;
