@@ -286,16 +286,35 @@ function AuthPage({ onAuth }) {
   const w = useW();
   const isM = w < 768;
 
-  const submit = () => {
+  const submit = async () => {
     setErr("");
     if (mode === "login") {
       if (!email || !pass) return setErr("Please fill in all fields.");
       setLoading(true);
-      setTimeout(() => { setLoading(false); onAuth({ name:"Michael P.", business:"MP Web & Automations", avatar:"M" }); }, 1100);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password:pass });
+      setLoading(false);
+      if (error) return setErr(error.message);
+      onAuth({
+        name: data.user.user_metadata?.name || email,
+        business: data.user.user_metadata?.business || "My Business",
+        avatar: (data.user.user_metadata?.name || email)[0].toUpperCase()
+      });
     } else {
       if (!name || !email || !pass) return setErr("Please fill in all fields.");
       setLoading(true);
-      setTimeout(() => { setLoading(false); onAuth({ name, business:biz||"My Business", avatar:name[0].toUpperCase() }); }, 1100);
+      const { data, error } = await supabase.auth.signUp({
+        email, password:pass,
+        options: { data: { name, business:biz||"My Business" } }
+      });
+      setLoading(false);
+      if (error) return setErr(error.message);
+      if (data.user) {
+        onAuth({
+          name,
+          business: biz || "My Business",
+          avatar: name[0].toUpperCase()
+        });
+      }
     }
   };
 
@@ -1582,6 +1601,33 @@ function ExportPage({ data, isMobile }) {
 ══════════════════════════════════════════════════════ */
 export default function App() {
   const [user,      setUser]      = useState(null);
+  useEffect(() => {
+  // Check if user is already logged in
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      setUser({
+        name: session.user.user_metadata?.name || session.user.email,
+        business: session.user.user_metadata?.business || "My Business",
+        avatar: (session.user.user_metadata?.name || session.user.email)[0].toUpperCase()
+      });
+    }
+  });
+
+  // Listen for auth changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      setUser({
+        name: session.user.user_metadata?.name || session.user.email,
+        business: session.user.user_metadata?.business || "My Business",
+        avatar: (session.user.user_metadata?.name || session.user.email)[0].toUpperCase()
+      });
+    } else {
+      setUser(null);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
   const [active,    setActive]    = useState("dashboard");
   const [data,      setData]      = useState(SEED);
   const [menuOpen,  setMenuOpen]  = useState(false);
@@ -1609,7 +1655,7 @@ export default function App() {
     <>
       <style>{CSS}</style>
       <div style={{ fontFamily:"'EB Garamond',serif", background:T.bg, minHeight:"100vh", color:T.cream, display:"flex", flexDirection:isM?"column":"row" }}>
-        {!isM && <Sidebar active={active} setActive={setActive} user={user} onLogout={() => setUser(null)}/>}
+        {!isM && <Sidebar active={active} setActive={setActive} user={user} onLogout={async () => { await supabase.auth.signOut(); setUser(null); }}/>}
         {isM  && <MobileHeader active={active} user={user} menuOpen={menuOpen} setMenuOpen={setMenuOpen} setActive={setActive} onLogout={() => setUser(null)}/>}
 
         <main style={{ marginLeft:isM?0:226, flex:1, padding:isM?"18px 16px 90px":"34px 44px", minHeight:"100vh", width:isM?"100%":undefined, maxWidth:isM?"100%":undefined }}>
