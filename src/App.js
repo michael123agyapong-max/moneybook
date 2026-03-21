@@ -506,7 +506,7 @@ function Dashboard({ isMobile }) {
   ];
   const spendByCat = expenses.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+e.amount; return a; },{});
   const pieData = Object.entries(spendByCat).map(([n,v])=>({name:n,value:v}));
-  const recent = [...data.income.slice(0,3).map(i=>({...i,type:"income"})), ...data.expenses.slice(0,3).map(e=>({...e,type:"expense"}))]
+  const recent = [...income.slice(0,3).map(i=>({...i,type:"income"})), ...expenses.slice(0,3).map(e=>({...e,type:"expense"}))]
     .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
 
   const cols = isMobile ? "1fr 1fr" : "repeat(4,1fr)";
