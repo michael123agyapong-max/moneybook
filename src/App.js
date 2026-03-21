@@ -38,16 +38,9 @@ const CATEGORY_ICONS = {
 };
 
 /* ══════════════════════════════════════════════════════
-   SEED DATA  (used for Budget / Reports / Export pages)
+   SEED (budget only — income/expenses/sales from Supabase)
 ══════════════════════════════════════════════════════ */
-const SEED = {
-  income:    [],
-  expenses:  [],
-  sales:     [],
-  customers: [],
-  budgets:   [],
-  debts:     [],
-};
+const SEED = { budgets: [] };
 
 /* ══════════════════════════════════════════════════════
    HELPERS
@@ -91,16 +84,12 @@ const CSS = `
   .card-lift { transition: transform .2s, box-shadow .2s, border-color .2s; }
   .card-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.5); border-color: #243348 !important; }
   input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: #D4A85370 !important;
-    box-shadow: 0 0 0 3px #D4A85318;
+    outline: none; border-color: #D4A85370 !important; box-shadow: 0 0 0 3px #D4A85318;
   }
   input:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 100px #0C1018 inset !important;
     -webkit-text-fill-color: #F0E8D8 !important;
   }
-  .tab { transition: all .2s; cursor:pointer; }
-  .tab:hover { color: #D4A853 !important; }
   .pulse { animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 `;
@@ -114,8 +103,7 @@ function Btn({ children, onClick, variant="gold", full, sm, style:s={}, disabled
     border:"none", borderRadius:10, cursor:disabled?"not-allowed":"pointer",
     fontFamily:"'EB Garamond', serif", fontWeight:600, letterSpacing:.4,
     transition:"all .2s", width:full?"100%":undefined, opacity:disabled?.5:1,
-    padding: sm ? "7px 16px" : "11px 24px",
-    fontSize: sm ? 14 : 15,
+    padding: sm ? "7px 16px" : "11px 24px", fontSize: sm ? 14 : 15,
   };
   const vs = {
     gold:    { background:`linear-gradient(135deg,${T.gold},${T.goldDk})`, color:"#06080F", ...base },
@@ -125,16 +113,16 @@ function Btn({ children, onClick, variant="gold", full, sm, style:s={}, disabled
     emerald: { background:`linear-gradient(135deg,${T.emerald},#127A52)`, color:"#06080F", ...base },
   };
   return (
-    <button onClick={disabled?undefined:onClick} className={variant==="gold"?"glow-btn":""} style={{...(vs[variant]||vs.gold), ...s}}>
+    <button onClick={disabled?undefined:onClick} className={variant==="gold"?"glow-btn":""} style={{...(vs[variant]||vs.gold),...s}}>
       {children}
     </button>
   );
 }
 
-function Field({ label, children, hint, row }) {
+function Field({ label, children, hint }) {
   return (
-    <div style={{ marginBottom:16, ...(row?{display:"flex",alignItems:"center",gap:12}:{}) }}>
-      {label && <label style={{display:"block",fontSize:12,color:T.fog,fontFamily:"'Inter',sans-serif",textTransform:"uppercase",letterSpacing:1.1,marginBottom:row?0:6,flexShrink:0}}>{label}</label>}
+    <div style={{ marginBottom:16 }}>
+      {label && <label style={{display:"block",fontSize:12,color:T.fog,fontFamily:"'Inter',sans-serif",textTransform:"uppercase",letterSpacing:1.1,marginBottom:6}}>{label}</label>}
       {children}
       {hint && <div style={{fontSize:12,color:T.fog,marginTop:4,fontFamily:"'Inter',sans-serif"}}>{hint}</div>}
     </div>
@@ -264,13 +252,7 @@ function AuthPage({ onAuth }) {
       });
       setLoading(false);
       if (error) return setErr(error.message);
-      if (data.user) {
-        onAuth({
-          name,
-          business: biz || "My Business",
-          avatar: name[0].toUpperCase()
-        });
-      }
+      if (data.user) onAuth({ name, business:biz||"My Business", avatar:name[0].toUpperCase() });
     }
   };
 
@@ -288,7 +270,7 @@ function AuthPage({ onAuth }) {
               Track income, expenses, sales and budgets — built for Ghanaian entrepreneurs and everyday people.
             </div>
             <div style={{ display:"flex", gap:28, marginTop:36 }}>
-              {[["2,000+","Active users"], ["GHS 4M+","Tracked monthly"], ["100%","Free to start"]].map(([v,l]) => (
+              {[["2,000+","Active users"],["GHS 4M+","Tracked monthly"],["100%","Free to start"]].map(([v,l]) => (
                 <div key={l}>
                   <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:T.gold, fontWeight:700 }}>{v}</div>
                   <div style={{ fontSize:12, color:T.ash, fontFamily:"'Inter',sans-serif" }}>{l}</div>
@@ -340,7 +322,7 @@ function AuthPage({ onAuth }) {
           </span>
         </div>
         <div style={{ marginTop:24, borderTop:`1px solid ${T.rim}`, paddingTop:20 }}>
-          <button onClick={() => onAuth({ name:"Michael P.", business:"MP Web & Automations", avatar:"M" })} style={{ width:"100%", padding:"11px", background:"transparent", border:`1px dashed ${T.rim}`, borderRadius:10, color:T.fog, fontSize:14, cursor:"pointer", fontFamily:"'EB Garamond',serif", transition:"all .2s" }}>
+          <button onClick={() => onAuth({ name:"Demo User", business:"My Business", avatar:"D" })} style={{ width:"100%", padding:"11px", background:"transparent", border:`1px dashed ${T.rim}`, borderRadius:10, color:T.fog, fontSize:14, cursor:"pointer", fontFamily:"'EB Garamond',serif", transition:"all .2s" }}>
             ⚡ Enter Demo — no account needed
           </button>
         </div>
@@ -353,15 +335,15 @@ function AuthPage({ onAuth }) {
    NAVIGATION
 ══════════════════════════════════════════════════════ */
 const NAV = [
-  { id:"dashboard", icon:"◈", label:"Dashboard"  },
-  { id:"income",    icon:"↑",  label:"Income"     },
-  { id:"expenses",  icon:"↓",  label:"Expenses"   },
-  { id:"sales",     icon:"⊕",  label:"Sales"      },
-  { id:"budget",    icon:"◎",  label:"Budget"     },
-  { id:"customers", icon:"◉",  label:"Customers"  },
-  { id:"debts",     icon:"⟳",  label:"Debts"      },
-  { id:"reports",   icon:"≡",  label:"Reports"    },
-  { id:"export",    icon:"⇩",  label:"Export"     },
+  { id:"dashboard", icon:"◈", label:"Dashboard" },
+  { id:"income",    icon:"↑",  label:"Income"    },
+  { id:"expenses",  icon:"↓",  label:"Expenses"  },
+  { id:"sales",     icon:"⊕",  label:"Sales"     },
+  { id:"budget",    icon:"◎",  label:"Budget"    },
+  { id:"customers", icon:"◉",  label:"Customers" },
+  { id:"debts",     icon:"⟳",  label:"Debts"     },
+  { id:"reports",   icon:"≡",  label:"Reports"   },
+  { id:"export",    icon:"⇩",  label:"Export"    },
 ];
 
 function Sidebar({ active, setActive, user, onLogout }) {
@@ -369,7 +351,7 @@ function Sidebar({ active, setActive, user, onLogout }) {
     <aside style={{ width:226, minHeight:"100vh", background:T.surface, borderRight:`1px solid ${T.rim}`, display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, zIndex:100 }}>
       <div style={{ padding:"22px 20px 18px", borderBottom:`1px solid ${T.rim}` }}>
         <div style={{ display:"flex", alignItems:"center", gap:11 }}>
-          <div style={{ width:38, height:38, borderRadius:11, background:`linear-gradient(135deg,${T.gold},${T.goldDk})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, fontWeight:800, color:T.bg, boxShadow:`0 4px 16px ${T.gold}40`, flexShrink:0 }}>₵</div>
+          <div style={{ width:38, height:38, borderRadius:11, background:`linear-gradient(135deg,${T.gold},${T.goldDk})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, fontWeight:800, color:T.bg, flexShrink:0 }}>₵</div>
           <div>
             <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, color:T.cream, fontWeight:700, lineHeight:1 }}>MoneyBook</div>
             <div style={{ fontSize:10, color:T.fog, letterSpacing:1.6, textTransform:"uppercase", fontFamily:"'Inter',sans-serif", marginTop:2 }}>Ghana Edition</div>
@@ -394,7 +376,7 @@ function Sidebar({ active, setActive, user, onLogout }) {
             <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.business}</div>
           </div>
         </div>
-        <button onClick={onLogout} style={{ width:"100%", padding:"8px", background:"transparent", border:`1px solid ${T.rim}`, borderRadius:8, color:T.fog, fontSize:13, cursor:"pointer", fontFamily:"'Inter',sans-serif", transition:"all .2s" }}>Sign Out</button>
+        <button onClick={onLogout} style={{ width:"100%", padding:"8px", background:"transparent", border:`1px solid ${T.rim}`, borderRadius:8, color:T.fog, fontSize:13, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Sign Out</button>
       </div>
     </aside>
   );
@@ -446,9 +428,6 @@ function MobileNav({ active, setActive }) {
   );
 }
 
-/* ══════════════════════════════════════════════════════
-   PAGE HEADER BANNER
-══════════════════════════════════════════════════════ */
 function PageBanner({ img, title, sub, children }) {
   return (
     <div style={{ position:"relative", borderRadius:20, overflow:"hidden", marginBottom:28, minHeight:140 }}>
@@ -466,9 +445,9 @@ function PageBanner({ img, title, sub, children }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   DASHBOARD
+   DASHBOARD — fully Supabase connected
 ══════════════════════════════════════════════════════ */
-function Dashboard({ isMobile }) {
+function Dashboard({ isMobile, budgets }) {
   const [income,   setIncome]   = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [debts,    setDebts]    = useState([]);
@@ -490,13 +469,14 @@ function Dashboard({ isMobile }) {
   }, []);
 
   const D = todayS();
-  const todayInc  = income.filter(i=>i.date===D).reduce((s,i)=>s+(+i.amount),0);
-  const todayExp  = expenses.filter(e=>e.date===D).reduce((s,e)=>s+(+e.amount),0);
-  const totalInc  = income.reduce((s,i)=>s+(+i.amount),0);
-  const totalExp  = expenses.reduce((s,e)=>s+(+e.amount),0);
-  const net       = totalInc - totalExp;
-  const budgets   = [];
-  const activeBudget = budgets[0];
+  const todayInc = income.filter(i=>i.date===D).reduce((s,i)=>s+(+i.amount),0);
+  const todayExp = expenses.filter(e=>e.date===D).reduce((s,e)=>s+(+e.amount),0);
+  const totalInc = income.reduce((s,i)=>s+(+i.amount),0);
+  const totalExp = expenses.reduce((s,e)=>s+(+e.amount),0);
+  const net      = totalInc - totalExp;
+
+  // Budget remaining from real budget data
+  const activeBudget = budgets && budgets[0];
   const budgetSpent  = activeBudget ? activeBudget.categories.reduce((s,c)=>s+c.spent,0) : 0;
   const budgetLeft   = activeBudget ? activeBudget.totalCash - budgetSpent : 0;
 
@@ -504,11 +484,10 @@ function Dashboard({ isMobile }) {
     {m:"Oct",i:2200,e:1100},{m:"Nov",i:2800,e:1200},{m:"Dec",i:3400,e:1800},
     {m:"Jan",i:2100,e:900},{m:"Feb",i:3900,e:2100},{m:"Mar",i:2850,e:1550},
   ];
-  const spendByCat = expenses.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+e.amount; return a; },{});
-  const pieData = Object.entries(spendByCat).map(([n,v])=>({name:n,value:v}));
-  const recent = [...income.slice(0,3).map(i=>({...i,type:"income"})), ...expenses.slice(0,3).map(e=>({...e,type:"expense"}))]
+  const spendByCat = expenses.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+(+e.amount); return a; },{});
+  const pieData    = Object.entries(spendByCat).map(([n,v])=>({name:n,value:v}));
+  const recent     = [...income.slice(0,3).map(i=>({...i,type:"income"})), ...expenses.slice(0,3).map(e=>({...e,type:"expense"}))]
     .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
-
   const cols = isMobile ? "1fr 1fr" : "repeat(4,1fr)";
 
   return (
@@ -516,17 +495,13 @@ function Dashboard({ isMobile }) {
       <div style={{ position:"relative", borderRadius:22, overflow:"hidden", marginBottom:26, background:"linear-gradient(120deg,#0A1428,#0E1E10)" }}>
         <img src={HERO_IMGS.dashboard} alt="" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", opacity:.18 }}/>
         <div style={{ position:"relative", padding:isMobile?"22px 20px":"32px 36px" }}>
-          <div style={{ fontSize:12, color:T.fog, textTransform:"uppercase", letterSpacing:1.5, fontFamily:"'Inter',sans-serif", marginBottom:6 }}>Thursday, 20 March 2026</div>
+          <div style={{ fontSize:12, color:T.fog, textTransform:"uppercase", letterSpacing:1.5, fontFamily:"'Inter',sans-serif", marginBottom:6 }}>{new Date().toDateString()}</div>
           <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?28:42, color:T.cream, fontWeight:700, letterSpacing:-.5, lineHeight:1.1 }}>
-            Good morning, Michael <span style={{ color:T.gold }}>✦</span>
+            Good day <span style={{ color:T.gold }}>✦</span>
           </div>
           <div style={{ fontSize:15, color:T.ash, marginTop:8, fontFamily:"'EB Garamond',serif" }}>Your financial summary at a glance.</div>
           <div style={{ display:"flex", gap:isMobile?20:40, marginTop:22, flexWrap:"wrap" }}>
-            {[
-              {l:"All-Time Income", v:fmt(totalInc), c:T.emerald},
-              {l:"All-Time Expenses", v:fmt(totalExp), c:T.rose},
-              {l:"Net Balance", v:fmt(net), c:T.gold},
-            ].map(({l,v,c})=>(
+            {[{l:"All-Time Income",v:fmt(totalInc),c:T.emerald},{l:"All-Time Expenses",v:fmt(totalExp),c:T.rose},{l:"Net Balance",v:fmt(net),c:T.gold}].map(({l,v,c})=>(
               <div key={l}><div style={{fontSize:11,color:T.fog,fontFamily:"'Inter',sans-serif",marginBottom:3}}>{l}</div><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:isMobile?18:24,color:c,fontWeight:700}}>{v}</div></div>
             ))}
           </div>
@@ -534,23 +509,27 @@ function Dashboard({ isMobile }) {
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:cols, gap:14, marginBottom:22 }}>
-        <StatCard label="Income Today"     value={fmt(todayInc)}           sub="↑ 3 sources"            color={T.emerald} icon="💰" glow delay="fade-1"/>
-        <StatCard label="Expenses Today"   value={fmt(todayExp)}           sub="↓ 2 transactions"       color={T.rose}    icon="📤" delay="fade-2"/>
-        <StatCard label="Budget Remaining" value={fmt(Math.max(budgetLeft,0))} sub={budgetLeft<0?"⚠ Overspent!":"✓ On track"} color={budgetLeft<0?T.rose:T.gold} icon="🎯" delay="fade-1"/>
+        <StatCard label="Income Today"     value={fmt(todayInc)} sub="↑ today"   color={T.emerald} icon="💰" glow delay="fade-1"/>
+        <StatCard label="Expenses Today"   value={fmt(todayExp)} sub="↓ today"   color={T.rose}    icon="📤" delay="fade-2"/>
+        <StatCard label="Budget Remaining" value={activeBudget ? fmt(Math.max(budgetLeft,0)) : "No budget"} sub={activeBudget?(budgetLeft<0?"⚠ Overspent!":"✓ On track"):"Create one →"} color={!activeBudget||budgetLeft>=0?T.gold:T.rose} icon="🎯" delay="fade-1"/>
         <StatCard label="Net Profit Today" value={fmt(todayInc-todayExp)} sub={(todayInc-todayExp)>=0?"✓ In the green":"⚠ Net loss"} color={(todayInc-todayExp)>=0?T.emerald:T.rose} icon="📊" delay="fade-2"/>
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 5fr", gap:16, marginBottom:16 }}>
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>By Category</div>
-          <ResponsiveContainer width="100%" height={150}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={66} dataKey="value" paddingAngle={3}>
-                {pieData.map((_,i) => <Cell key={i} fill={SERIES_COLORS[i%SERIES_COLORS.length]}/>)}
-              </Pie>
-              <Tooltip content={<CTip/>}/>
-            </PieChart>
-          </ResponsiveContainer>
+          {pieData.length === 0 ? (
+            <div style={{ color:T.fog, fontSize:13, fontFamily:"'EB Garamond',serif", textAlign:"center", padding:"20px 0" }}>No expenses yet</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={150}>
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={66} dataKey="value" paddingAngle={3}>
+                  {pieData.map((_,i) => <Cell key={i} fill={SERIES_COLORS[i%SERIES_COLORS.length]}/>)}
+                </Pie>
+                <Tooltip content={<CTip/>}/>
+              </PieChart>
+            </ResponsiveContainer>
+          )}
           <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 10px", marginTop:10 }}>
             {pieData.map((d,i) => (
               <div key={d.name} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:T.ash, fontFamily:"'Inter',sans-serif" }}>
@@ -565,14 +544,8 @@ function Dashboard({ isMobile }) {
           <ResponsiveContainer width="100%" height={170}>
             <AreaChart data={monthly} margin={{ top:4, right:4, bottom:0, left:-20 }}>
               <defs>
-                <linearGradient id="dai" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={T.emerald} stopOpacity={.3}/>
-                  <stop offset="95%" stopColor={T.emerald} stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="dae" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={T.rose} stopOpacity={.25}/>
-                  <stop offset="95%" stopColor={T.rose} stopOpacity={0}/>
-                </linearGradient>
+                <linearGradient id="dai" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.emerald} stopOpacity={.3}/><stop offset="95%" stopColor={T.emerald} stopOpacity={0}/></linearGradient>
+                <linearGradient id="dae" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.rose} stopOpacity={.25}/><stop offset="95%" stopColor={T.rose} stopOpacity={0}/></linearGradient>
               </defs>
               <XAxis dataKey="m" tick={{ fill:T.fog, fontSize:11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false} tickFormatter={v=>`${v/1000}k`}/>
@@ -581,19 +554,13 @@ function Dashboard({ isMobile }) {
               <Area type="monotone" dataKey="e" stroke={T.rose}    fill="url(#dae)" strokeWidth={2.5} name="Expenses"/>
             </AreaChart>
           </ResponsiveContainer>
-          <div style={{ display:"flex", gap:20, marginTop:8 }}>
-            {[{c:T.emerald,l:"Income"},{c:T.rose,l:"Expenses"}].map(({c,l})=>(
-              <div key={l} style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:T.ash, fontFamily:"'Inter',sans-serif" }}>
-                <div style={{ width:18, height:3, borderRadius:2, background:c }}/>{l}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"2fr 1fr", gap:16 }}>
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Recent Transactions</div>
+          {recent.length === 0 && <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif" }}>No transactions yet. Start recording income or expenses.</div>}
           {recent.map((t,i) => (
             <div key={i} className="row-hover" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"11px 8px", borderBottom:i<recent.length-1?`1px solid ${T.rim}`:"none", borderRadius:8 }}>
               <div style={{ display:"flex", gap:12, alignItems:"center" }}>
@@ -633,94 +600,84 @@ function Dashboard({ isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   INCOME PAGE  — Supabase connected
+   INCOME PAGE — Supabase + Edit + Delete
 ══════════════════════════════════════════════════════ */
 function IncomePage({ isMobile }) {
-  const [income, setIncome]   = useState([]);
-  const [modal, setModal]     = useState(false);
+  const [income,  setIncome]  = useState([]);
+  const [modal,   setModal]   = useState(false);
+  const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [form, setForm]       = useState({ amount:"", date:todayS(), source:"", category:"Business Revenue" });
+  const blankForm = { amount:"", date:todayS(), source:"", category:"Business Revenue" };
+  const [form, setForm] = useState(blankForm);
   const cats = ["Business Revenue","Salary","Freelance","Food Sales","Investment","Other"];
 
-  const loadIncome = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-    const { data, error } = await supabase
-      .from('income')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false });
+    const { data, error } = await supabase.from('income').select('*').eq('user_id', user.id).order('date', { ascending: false });
     if (!error) setIncome(data || []);
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadIncome(); }, [loadIncome]);
+  useEffect(() => { load(); }, [load]);
+
+  const openAdd  = ()     => { setEditing(null); setForm(blankForm); setModal(true); };
+  const openEdit = (item) => { setEditing(item); setForm({ amount:item.amount, date:item.date, source:item.source, category:item.category }); setModal(true); };
 
   const save = async () => {
     if (!form.amount || !form.source) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('income').insert({
-      user_id:  user.id,
-      amount:   +form.amount,
-      date:     form.date,
-      source:   form.source,
-      category: form.category,
-    });
-    if (!error) {
-      setModal(false);
-      setForm({ amount:"", date:todayS(), source:"", category:"Business Revenue" });
-      loadIncome();
+    if (editing) {
+      await supabase.from('income').update({ amount:+form.amount, date:form.date, source:form.source, category:form.category }).eq('id', editing.id);
+    } else {
+      await supabase.from('income').insert({ user_id:user.id, amount:+form.amount, date:form.date, source:form.source, category:form.category });
     }
+    setModal(false); setEditing(null); setForm(blankForm); load();
   };
 
-  const total = income.reduce((s,i) => s + +i.amount, 0);
-  const month = income.filter(i => i.date?.startsWith("2026-03")).reduce((s,i) => s + +i.amount, 0);
-  const today = income.filter(i => i.date === todayS()).reduce((s,i) => s + +i.amount, 0);
+  const del = async (id) => { await supabase.from('income').delete().eq('id', id); load(); };
+
+  const total = income.reduce((s,i) => s+(+i.amount), 0);
+  const month = income.filter(i=>i.date?.slice(0,7)===todayS().slice(0,7)).reduce((s,i)=>s+(+i.amount),0);
+  const today = income.filter(i=>i.date===todayS()).reduce((s,i)=>s+(+i.amount),0);
 
   return (
     <div className="fade">
       <PageBanner img={HERO_IMGS.dashboard} title="Income" sub="All money received across your businesses">
-        <Btn onClick={() => setModal(true)}>+ Record Income</Btn>
+        <Btn onClick={openAdd}>+ Record Income</Btn>
       </PageBanner>
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
         <StatCard label="All-Time Income" value={fmt(total)} color={T.emerald} glow/>
         <StatCard label="This Month"      value={fmt(month)} color={T.gold}/>
         <StatCard label="Today"           value={fmt(today)} color={T.sapphire}/>
       </div>
-
       {loading ? (
-        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading income records...</div>
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading...</div>
       ) : (
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, overflow:"hidden" }}>
-          {income.length === 0 && (
-            <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
-              No income recorded yet. Click <strong style={{color:T.gold}}>+ Record Income</strong> to add your first entry.
-            </div>
-          )}
-          {isMobile ? (
-            income.map((item,i,arr) => (
-              <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div style={{ display:"flex", gap:11, alignItems:"center" }}>
-                  <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"💰"}</span>
-                  <div>
-                    <div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.source}</div>
-                    <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div>
-                  </div>
+          {income.length === 0 && <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>No income yet. Click <strong style={{color:T.gold}}>+ Record Income</strong> to add your first entry.</div>}
+          {isMobile ? income.map((item,i,arr) => (
+            <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ display:"flex", gap:11, alignItems:"center" }}>
+                <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"💰"}</span>
+                <div>
+                  <div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.source}</div>
+                  <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div>
                 </div>
-                <div style={{ fontSize:15, fontWeight:600, color:T.emerald, fontFamily:"'EB Garamond',serif" }}>+{fmt(item.amount)}</div>
               </div>
-            ))
-          ) : (
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ fontSize:15, fontWeight:600, color:T.emerald, fontFamily:"'EB Garamond',serif" }}>+{fmt(item.amount)}</div>
+                <button onClick={()=>openEdit(item)} style={{ background:"none", border:"none", color:T.sapphire, cursor:"pointer", fontSize:13 }}>✎</button>
+                <button onClick={()=>del(item.id)} style={{ background:"none", border:"none", color:T.rose, cursor:"pointer", fontSize:14 }}>✕</button>
+              </div>
+            </div>
+          )) : (
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
-              <thead>
-                <tr style={{ background:"#090D14" }}>
-                  {["","Date","Source","Category","Amount"].map(h => (
-                    <th key={h} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
+              <thead><tr style={{ background:"#090D14" }}>
+                {["","Date","Source","Category","Amount",""].map((h,i) => <th key={i} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>{h}</th>)}
+              </tr></thead>
               <tbody>
                 {income.map(item => (
                   <tr key={item.id} className="row-hover" style={{ borderTop:`1px solid ${T.rim}` }}>
@@ -729,6 +686,12 @@ function IncomePage({ isMobile }) {
                     <td style={{ padding:"12px 18px", fontSize:15, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.source}</td>
                     <td style={{ padding:"12px 18px" }}><Badge color={T.emerald}>{item.category}</Badge></td>
                     <td style={{ padding:"12px 18px", fontSize:16, fontWeight:600, color:T.emerald, fontFamily:"'Cormorant Garamond',serif" }}>+{fmt(item.amount)}</td>
+                    <td style={{ padding:"12px 18px" }}>
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={()=>openEdit(item)} style={{ background:`${T.sapphire}18`, border:`1px solid ${T.sapphire}40`, borderRadius:6, padding:"4px 10px", color:T.sapphire, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Edit</button>
+                        <button onClick={()=>del(item.id)}   style={{ background:`${T.rose}18`, border:`1px solid ${T.rose}40`, borderRadius:6, padding:"4px 10px", color:T.rose, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Delete</button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -736,15 +699,14 @@ function IncomePage({ isMobile }) {
           )}
         </div>
       )}
-
-      {modal && <Drawer title="Record Income" subtitle="Add a new income entry" onClose={() => setModal(false)}>
+      {modal && <Drawer title={editing?"Edit Income":"Record Income"} subtitle={editing?"Update this entry":"Add a new income entry"} onClose={()=>{setModal(false);setEditing(null);}}>
         <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
         <FInput label="Source / Description" value={form.source} onChange={e=>setForm(f=>({...f,source:e.target.value}))} placeholder="e.g. Client payment from Kofi…"/>
         <FSelect label="Category" options={cats} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/>
         <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
         <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn full onClick={save}>Save Income</Btn>
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
+          <Btn full onClick={save}>{editing?"Update Income":"Save Income"}</Btn>
+          <Btn variant="ghost" onClick={()=>{setModal(false);setEditing(null);}}>Cancel</Btn>
         </div>
       </Drawer>}
     </div>
@@ -752,86 +714,80 @@ function IncomePage({ isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   EXPENSES PAGE  — Supabase connected
+   EXPENSES PAGE — Supabase + Edit + Delete
 ══════════════════════════════════════════════════════ */
 function ExpensesPage({ isMobile }) {
   const [expenses, setExpenses] = useState([]);
-  const [modal, setModal]       = useState(false);
-  const [loading, setLoading]   = useState(true);
-  const [form, setForm]         = useState({ amount:"", date:todayS(), description:"", category:"Food" });
+  const [modal,    setModal]    = useState(false);
+  const [editing,  setEditing]  = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const blankForm = { amount:"", date:todayS(), description:"", category:"Food" };
+  const [form, setForm] = useState(blankForm);
   const cats = ["Food","Transport","Business","Bills","Shopping","Healthcare","Entertainment","Education","Other"];
 
-  const loadExpenses = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false });
+    const { data, error } = await supabase.from('expenses').select('*').eq('user_id', user.id).order('date', { ascending: false });
     if (!error) setExpenses(data || []);
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadExpenses(); }, [loadExpenses]);
+  useEffect(() => { load(); }, [load]);
+
+  const openAdd  = ()     => { setEditing(null); setForm(blankForm); setModal(true); };
+  const openEdit = (item) => { setEditing(item); setForm({ amount:item.amount, date:item.date, description:item.description, category:item.category }); setModal(true); };
 
   const save = async () => {
     if (!form.amount || !form.description) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('expenses').insert({
-      user_id:     user.id,
-      amount:      +form.amount,
-      date:        form.date,
-      description: form.description,
-      category:    form.category,
-    });
-    if (!error) {
-      setModal(false);
-      setForm({ amount:"", date:todayS(), description:"", category:"Food" });
-      loadExpenses();
+    if (editing) {
+      await supabase.from('expenses').update({ amount:+form.amount, date:form.date, description:form.description, category:form.category }).eq('id', editing.id);
+    } else {
+      await supabase.from('expenses').insert({ user_id:user.id, amount:+form.amount, date:form.date, description:form.description, category:form.category });
     }
+    setModal(false); setEditing(null); setForm(blankForm); load();
   };
 
-  const total = expenses.reduce((s,e) => s + +e.amount, 0);
+  const del = async (id) => { await supabase.from('expenses').delete().eq('id', id); load(); };
+  const total = expenses.reduce((s,e)=>s+(+e.amount),0);
 
   return (
     <div className="fade">
       <PageBanner img={HERO_IMGS.budget} title="Expenses" sub="Every cedi spent, tracked with precision">
-        <Btn onClick={() => setModal(true)}>+ Add Expense</Btn>
+        <Btn onClick={openAdd}>+ Add Expense</Btn>
       </PageBanner>
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
         <StatCard label="Total Expenses" value={fmt(total)} color={T.rose} glow/>
-        <StatCard label="This Month"     value={fmt(expenses.filter(e=>e.date?.startsWith("2026-03")).reduce((s,e)=>s+(+e.amount),0))} color={T.gold}/>
-        <StatCard label="Today"          value={fmt(expenses.filter(e=>e.date===todayS()).reduce((s,e)=>s+(+e.amount),0))} color={T.rose}/>
+        <StatCard label="This Month" value={fmt(expenses.filter(e=>e.date?.slice(0,7)===todayS().slice(0,7)).reduce((s,e)=>s+(+e.amount),0))} color={T.gold}/>
+        <StatCard label="Today"      value={fmt(expenses.filter(e=>e.date===todayS()).reduce((s,e)=>s+(+e.amount),0))} color={T.rose}/>
       </div>
       {loading ? (
-        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading expenses...</div>
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading...</div>
       ) : (
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, overflow:"hidden" }}>
-          {expenses.length === 0 && (
-            <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
-              No expenses yet. Click <strong style={{color:T.gold}}>+ Add Expense</strong> to add one.
-            </div>
-          )}
-          {isMobile ? (
-            expenses.map((item,i,arr) => (
-              <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div style={{ display:"flex", gap:11, alignItems:"center" }}>
-                  <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"📤"}</span>
-                  <div>
-                    <div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</div>
-                    <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div>
-                  </div>
+          {expenses.length === 0 && <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>No expenses yet. Click <strong style={{color:T.gold}}>+ Add Expense</strong> to add one.</div>}
+          {isMobile ? expenses.map((item,i,arr) => (
+            <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ display:"flex", gap:11, alignItems:"center" }}>
+                <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"📤"}</span>
+                <div>
+                  <div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</div>
+                  <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div>
                 </div>
-                <div style={{ fontSize:15, fontWeight:600, color:T.rose, fontFamily:"'EB Garamond',serif" }}>-{fmt(item.amount)}</div>
               </div>
-            ))
-          ) : (
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ fontSize:15, fontWeight:600, color:T.rose, fontFamily:"'EB Garamond',serif" }}>-{fmt(item.amount)}</div>
+                <button onClick={()=>openEdit(item)} style={{ background:"none", border:"none", color:T.sapphire, cursor:"pointer", fontSize:13 }}>✎</button>
+                <button onClick={()=>del(item.id)}   style={{ background:"none", border:"none", color:T.rose, cursor:"pointer", fontSize:14 }}>✕</button>
+              </div>
+            </div>
+          )) : (
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead><tr style={{ background:"#090D14" }}>
-                {["","Date","Description","Category","Amount"].map(h=><th key={h} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>{h}</th>)}
+                {["","Date","Description","Category","Amount",""].map((h,i)=><th key={i} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {expenses.map(item => (
@@ -841,6 +797,12 @@ function ExpensesPage({ isMobile }) {
                     <td style={{ padding:"12px 18px", fontSize:15, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</td>
                     <td style={{ padding:"12px 18px" }}><Badge color={T.rose}>{item.category}</Badge></td>
                     <td style={{ padding:"12px 18px", fontSize:16, fontWeight:600, color:T.rose, fontFamily:"'Cormorant Garamond',serif" }}>-{fmt(item.amount)}</td>
+                    <td style={{ padding:"12px 18px" }}>
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={()=>openEdit(item)} style={{ background:`${T.sapphire}18`, border:`1px solid ${T.sapphire}40`, borderRadius:6, padding:"4px 10px", color:T.sapphire, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Edit</button>
+                        <button onClick={()=>del(item.id)}   style={{ background:`${T.rose}18`, border:`1px solid ${T.rose}40`, borderRadius:6, padding:"4px 10px", color:T.rose, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Delete</button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -848,14 +810,14 @@ function ExpensesPage({ isMobile }) {
           )}
         </div>
       )}
-      {modal && <Drawer title="Add Expense" subtitle="Record a new expense" onClose={() => setModal(false)}>
+      {modal && <Drawer title={editing?"Edit Expense":"Add Expense"} subtitle={editing?"Update this entry":"Record a new expense"} onClose={()=>{setModal(false);setEditing(null);}}>
         <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
         <FInput label="Description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="What was this for?"/>
         <FSelect label="Category" options={cats} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/>
         <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
         <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn full onClick={save}>Save Expense</Btn>
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
+          <Btn full onClick={save}>{editing?"Update Expense":"Save Expense"}</Btn>
+          <Btn variant="ghost" onClick={()=>{setModal(false);setEditing(null);}}>Cancel</Btn>
         </div>
       </Drawer>}
     </div>
@@ -863,55 +825,50 @@ function ExpensesPage({ isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   SALES PAGE  — Supabase connected
+   SALES PAGE — Supabase + Edit + Delete
 ══════════════════════════════════════════════════════ */
 function SalesPage({ isMobile }) {
-  const [sales, setSales]     = useState([]);
-  const [modal, setModal]     = useState(false);
+  const [sales,   setSales]   = useState([]);
+  const [modal,   setModal]   = useState(false);
+  const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [form, setForm]       = useState({ product:"", qty:1, price:"", customer:"", date:todayS() });
+  const blankForm = { product:"", qty:1, price:"", customer:"", date:todayS() };
+  const [form, setForm] = useState(blankForm);
 
-  const loadSales = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-    const { data, error } = await supabase
-      .from('sales')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false });
+    const { data, error } = await supabase.from('sales').select('*').eq('user_id', user.id).order('date', { ascending: false });
     if (!error) setSales(data || []);
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadSales(); }, [loadSales]);
+  useEffect(() => { load(); }, [load]);
+
+  const openAdd  = ()     => { setEditing(null); setForm(blankForm); setModal(true); };
+  const openEdit = (item) => { setEditing(item); setForm({ product:item.product, qty:item.qty, price:item.price, customer:item.customer||"", date:item.date }); setModal(true); };
 
   const save = async () => {
     if (!form.product || !form.price) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('sales').insert({
-      user_id:  user.id,
-      product:  form.product,
-      qty:      +form.qty,
-      price:    +form.price,
-      customer: form.customer,
-      date:     form.date,
-    });
-    if (!error) {
-      setModal(false);
-      setForm({ product:"", qty:1, price:"", customer:"", date:todayS() });
-      loadSales();
+    if (editing) {
+      await supabase.from('sales').update({ product:form.product, qty:+form.qty, price:+form.price, customer:form.customer, date:form.date }).eq('id', editing.id);
+    } else {
+      await supabase.from('sales').insert({ user_id:user.id, product:form.product, qty:+form.qty, price:+form.price, customer:form.customer, date:form.date });
     }
+    setModal(false); setEditing(null); setForm(blankForm); load();
   };
 
-  const totalRev    = sales.reduce((s,s2) => s + (+s2.qty * +s2.price), 0);
+  const del = async (id) => { await supabase.from('sales').delete().eq('id', id); load(); };
+  const totalRev    = sales.reduce((s,s2)=>s+(+s2.qty * +s2.price),0);
   const totalOrders = sales.length;
 
   return (
     <div className="fade">
       <PageBanner img={HERO_IMGS.sales} title="Sales" sub="Track every product and service sold">
-        <Btn onClick={() => setModal(true)}>+ Record Sale</Btn>
+        <Btn onClick={openAdd}>+ Record Sale</Btn>
       </PageBanner>
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
         <StatCard label="Total Revenue"   value={fmt(totalRev)} color={T.gold} glow/>
@@ -919,17 +876,13 @@ function SalesPage({ isMobile }) {
         <StatCard label="Avg Order Value" value={fmt(totalRev/Math.max(totalOrders,1))} color={T.emerald}/>
       </div>
       {loading ? (
-        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading sales...</div>
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading...</div>
       ) : (
         <div style={{ display:"grid", gap:12 }}>
-          {sales.length === 0 && (
-            <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
-              No sales yet. Click <strong style={{color:T.gold}}>+ Record Sale</strong> to add one.
-            </div>
-          )}
+          {sales.length === 0 && <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16 }}>No sales yet. Click <strong style={{color:T.gold}}>+ Record Sale</strong> to add one.</div>}
           {sales.map(item => (
-            <div key={item.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:isMobile?"14px 16px":"18px 22px", display:"flex", justifyContent:"space-between", alignItems:isMobile?"flex-start":"center", flexDirection:isMobile?"column":"row", gap:isMobile?10:0 }}>
-              <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+            <div key={item.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:isMobile?"14px 16px":"18px 22px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
+              <div style={{ display:"flex", gap:14, alignItems:"center", flex:1 }}>
                 <div style={{ width:44, height:44, borderRadius:12, background:`${T.gold}18`, border:`1px solid ${T.gold}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🛒</div>
                 <div>
                   <div style={{ fontSize:16, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{item.product}</div>
@@ -937,12 +890,16 @@ function SalesPage({ isMobile }) {
                   {item.customer && <div style={{ fontSize:12, color:T.sapphire, fontFamily:"'Inter',sans-serif", marginTop:1 }}>👤 {item.customer}</div>}
                 </div>
               </div>
-              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?20:26, fontWeight:700, color:T.gold }}>{fmt(+item.qty * +item.price)}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?18:24, fontWeight:700, color:T.gold }}>{fmt(+item.qty * +item.price)}</div>
+                <button onClick={()=>openEdit(item)} style={{ background:`${T.sapphire}18`, border:`1px solid ${T.sapphire}40`, borderRadius:6, padding:"5px 11px", color:T.sapphire, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Edit</button>
+                <button onClick={()=>del(item.id)}   style={{ background:`${T.rose}18`, border:`1px solid ${T.rose}40`, borderRadius:6, padding:"5px 11px", color:T.rose, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Delete</button>
+              </div>
             </div>
           ))}
         </div>
       )}
-      {modal && <Drawer title="Record Sale" subtitle="Log a product or service sale" onClose={() => setModal(false)}>
+      {modal && <Drawer title={editing?"Edit Sale":"Record Sale"} subtitle="Log a product or service sale" onClose={()=>{setModal(false);setEditing(null);}}>
         <FInput label="Product / Service" value={form.product} onChange={e=>setForm(f=>({...f,product:e.target.value}))} placeholder="e.g. Waakye large, n8n setup…"/>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
           <FInput label="Quantity" type="number" value={form.qty} onChange={e=>setForm(f=>({...f,qty:e.target.value}))}/>
@@ -956,8 +913,8 @@ function SalesPage({ isMobile }) {
         <FInput label="Customer (optional)" value={form.customer} onChange={e=>setForm(f=>({...f,customer:e.target.value}))} placeholder="Customer name"/>
         <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
         <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn full onClick={save}>Save Sale</Btn>
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
+          <Btn full onClick={save}>{editing?"Update Sale":"Save Sale"}</Btn>
+          <Btn variant="ghost" onClick={()=>{setModal(false);setEditing(null);}}>Cancel</Btn>
         </div>
       </Drawer>}
     </div>
@@ -965,7 +922,7 @@ function SalesPage({ isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   BUDGET PAGE  — local state (not Supabase)
+   BUDGET PAGE — local state, delete works
 ══════════════════════════════════════════════════════ */
 function BudgetPage({ data, setData, isMobile }) {
   const [selected, setSelected]     = useState(data.budgets[0]?.id || null);
@@ -977,38 +934,35 @@ function BudgetPage({ data, setData, isMobile }) {
   const [newCat, setNewCat]         = useState({ name:"", budget:"", icon:"📦" });
   const [spendAmt, setSpendAmt]     = useState("");
 
-  const budget    = data.budgets.find(b => b.id === selected);
-  const totAlloc  = budget ? budget.categories.reduce((s,c)=>s+c.budget,0) : 0;
-  const totSpent  = budget ? budget.categories.reduce((s,c)=>s+c.spent,0) : 0;
-  const free      = budget ? budget.totalCash - totAlloc : 0;
+  const budget   = data.budgets.find(b => b.id === selected);
+  const totAlloc = budget ? budget.categories.reduce((s,c)=>s+c.budget,0) : 0;
+  const totSpent = budget ? budget.categories.reduce((s,c)=>s+c.spent,0) : 0;
+  const free     = budget ? budget.totalCash - totAlloc : 0;
 
   const createBudget = () => {
     if (!nbForm.name || !nbForm.totalCash) return;
     const nb = { id:uid(), name:nbForm.name, date:nbForm.date, totalCash:+nbForm.totalCash, color:T.gold, categories:[] };
     setData(d => ({ ...d, budgets:[...d.budgets, nb] }));
-    setSelected(nb.id);
-    setCBM(false);
-    setNbForm({ name:"", date:todayS(), totalCash:"" });
+    setSelected(nb.id); setCBM(false); setNbForm({ name:"", date:todayS(), totalCash:"" });
   };
 
   const deleteBudget = (id) => {
-    setData(d => ({ ...d, budgets:d.budgets.filter(b=>b.id!==id) }));
-    setSelected(data.budgets.find(b=>b.id!==id)?.id||null);
+    const remaining = data.budgets.filter(b=>b.id!==id);
+    setData(d => ({ ...d, budgets:remaining }));
+    setSelected(remaining[0]?.id || null);
     setDeleteCfm(null);
   };
 
   const addCategory = () => {
     if (!newCat.name || !newCat.budget || !selected) return;
     setData(d => ({ ...d, budgets:d.budgets.map(b => b.id!==selected ? b : { ...b, categories:[...b.categories, { id:uid(), name:newCat.name, icon:newCat.icon, budget:+newCat.budget, spent:0 }] }) }));
-    setAddCat(false);
-    setNewCat({ name:"", budget:"", icon:"📦" });
+    setAddCat(false); setNewCat({ name:"", budget:"", icon:"📦" });
   };
 
   const recordSpend = (catId) => {
     if (!spendAmt || +spendAmt <= 0) return;
     setData(d => ({ ...d, budgets:d.budgets.map(b => b.id!==selected ? b : { ...b, categories:b.categories.map(c => c.id!==catId ? c : { ...c, spent:c.spent+(+spendAmt) }) }) }));
-    setRecord(null);
-    setSpendAmt("");
+    setRecord(null); setSpendAmt("");
   };
 
   const removeCategory = (catId) => {
@@ -1067,7 +1021,7 @@ function BudgetPage({ data, setData, isMobile }) {
                   const bc   = over ? T.rose : pct>70 ? T.gold : T.emerald;
                   const rem  = cat.budget - cat.spent;
                   return (
-                    <div key={cat.id} className="card-lift" style={{ background:T.card, border:`1px solid ${over?T.rose+"50":T.rim}`, borderRadius:18, padding:20, boxShadow:over?`0 0 24px ${T.rose}16`:"none" }}>
+                    <div key={cat.id} className="card-lift" style={{ background:T.card, border:`1px solid ${over?T.rose+"50":T.rim}`, borderRadius:18, padding:20 }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                           <span style={{ fontSize:26 }}>{cat.icon}</span>
@@ -1079,7 +1033,7 @@ function BudgetPage({ data, setData, isMobile }) {
                         </div>
                       </div>
                       <div style={{ height:8, background:T.night, borderRadius:4, marginBottom:14, overflow:"hidden" }}>
-                        <div style={{ height:"100%", width:`${pct}%`, background:`linear-gradient(90deg,${bc}80,${bc})`, borderRadius:4, transition:"width .7s ease", boxShadow:`0 0 10px ${bc}55` }}/>
+                        <div style={{ height:"100%", width:`${pct}%`, background:`linear-gradient(90deg,${bc}80,${bc})`, borderRadius:4, transition:"width .7s ease" }}/>
                       </div>
                       <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, fontFamily:"'Inter',sans-serif", marginBottom:12 }}>
                         <span style={{ color:T.fog }}>Budget <span style={{ color:T.cream, fontWeight:500 }}>{fmt(cat.budget)}</span></span>
@@ -1105,13 +1059,10 @@ function BudgetPage({ data, setData, isMobile }) {
         </div>
       )}
 
-      {createBudgetModal && <Drawer title="Create New Budget" subtitle="Set up a daily or event-based budget" onClose={() => setCBM(false)}>
-        <FInput label="Budget Name" value={nbForm.name} onChange={e=>setNbForm(f=>({...f,name:e.target.value}))} placeholder="e.g. March Daily Budget, Event Budget…"/>
+      {createBudgetModal && <Drawer title="Create New Budget" onClose={() => setCBM(false)}>
+        <FInput label="Budget Name" value={nbForm.name} onChange={e=>setNbForm(f=>({...f,name:e.target.value}))} placeholder="e.g. March Daily Budget"/>
         <FInput label="Total Cash Available (GHS)" type="number" value={nbForm.totalCash} onChange={e=>setNbForm(f=>({...f,totalCash:e.target.value}))} placeholder="e.g. 500"/>
         <FInput label="Date" type="date" value={nbForm.date} onChange={e=>setNbForm(f=>({...f,date:e.target.value}))}/>
-        <div style={{ background:`${T.gold}10`, border:`1px solid ${T.gold}25`, borderRadius:10, padding:"12px 14px", marginBottom:16, fontSize:14, color:T.ash, fontFamily:"'EB Garamond',serif", lineHeight:1.6 }}>
-          💡 After creating the budget, you can add spending categories like Food, Transport, etc.
-        </div>
         <div style={{ display:"flex", gap:10 }}>
           <Btn full onClick={createBudget}>Create Budget</Btn>
           <Btn variant="ghost" onClick={() => setCBM(false)}>Cancel</Btn>
@@ -1119,7 +1070,7 @@ function BudgetPage({ data, setData, isMobile }) {
       </Drawer>}
 
       {addCatModal && <Drawer title="Add Category" subtitle={`Adding to: ${budget?.name}`} onClose={() => setAddCat(false)}>
-        <FInput label="Category Name" value={newCat.name} onChange={e=>setNewCat(f=>({...f,name:e.target.value}))} placeholder="e.g. Food, Transport, Bills…"/>
+        <FInput label="Category Name" value={newCat.name} onChange={e=>setNewCat(f=>({...f,name:e.target.value}))} placeholder="e.g. Food, Transport…"/>
         <FInput label="Budget Amount (GHS)" type="number" value={newCat.budget} onChange={e=>setNewCat(f=>({...f,budget:e.target.value}))} placeholder="e.g. 80"/>
         <Field label="Icon">
           <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:4 }}>
@@ -1156,51 +1107,35 @@ function BudgetPage({ data, setData, isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   CUSTOMERS PAGE  — Supabase connected
+   CUSTOMERS PAGE — Supabase connected
 ══════════════════════════════════════════════════════ */
 function CustomersPage({ isMobile }) {
   const [customers, setCustomers] = useState([]);
-  const [modal, setModal]         = useState(false);
-  const [loading, setLoading]     = useState(true);
-  const [selected, setSel]        = useState(null);
-  const [form, setForm]           = useState({ name:"", phone:"", note:"" });
+  const [modal,     setModal]     = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const [selected,  setSel]       = useState(null);
+  const [form,      setForm]      = useState({ name:"", phone:"", note:"" });
 
-  const loadCustomers = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('total_spent', { ascending: false });
+    const { data, error } = await supabase.from('customers').select('*').eq('user_id', user.id).order('total_spent', { ascending: false });
     if (!error) setCustomers(data || []);
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadCustomers(); }, [loadCustomers]);
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     if (!form.name) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('customers').insert({
-      user_id:     user.id,
-      name:        form.name,
-      phone:       form.phone,
-      note:        form.note,
-      total_spent: 0,
-      purchases:   0,
-      last_seen:   todayS(),
-    });
-    if (!error) {
-      setModal(false);
-      setForm({ name:"", phone:"", note:"" });
-      loadCustomers();
-    }
+    await supabase.from('customers').insert({ user_id:user.id, name:form.name, phone:form.phone, note:form.note, total_spent:0, purchases:0, last_seen:todayS() });
+    setModal(false); setForm({ name:"", phone:"", note:"" }); load();
   };
 
-  const totalRev = customers.reduce((s,c) => s + (+c.total_spent||0), 0);
+  const totalRev = customers.reduce((s,c) => s+(+c.total_spent||0), 0);
   const topCust  = customers[0];
 
   return (
@@ -1209,19 +1144,15 @@ function CustomersPage({ isMobile }) {
         <Btn onClick={() => setModal(true)}>+ Add Customer</Btn>
       </PageBanner>
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
-        <StatCard label="Total Customers" value={customers.length}    color={T.sapphire}/>
-        <StatCard label="Total Revenue"   value={fmt(totalRev)}       color={T.gold} glow/>
-        <StatCard label="Top Customer"    value={topCust?.name||"—"}  color={T.emerald} sub={topCust?fmt(topCust.total_spent):""}/>
+        <StatCard label="Total Customers" value={customers.length}   color={T.sapphire}/>
+        <StatCard label="Total Revenue"   value={fmt(totalRev)}      color={T.gold} glow/>
+        <StatCard label="Top Customer"    value={topCust?.name||"—"} color={T.emerald} sub={topCust?fmt(topCust.total_spent):""}/>
       </div>
       {loading ? (
-        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading customers...</div>
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading...</div>
       ) : (
         <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:14 }}>
-          {customers.length === 0 && (
-            <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16, gridColumn:"1/-1" }}>
-              No customers yet. Click <strong style={{color:T.gold}}>+ Add Customer</strong> to add one.
-            </div>
-          )}
+          {customers.length === 0 && <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16, gridColumn:"1/-1" }}>No customers yet.</div>}
           {customers.map((c,i) => (
             <div key={c.id} className="card-lift" onClick={() => setSel(c)} style={{ background:T.card, border:`1px solid ${i===0?T.gold+"45":T.rim}`, borderRadius:18, padding:22, cursor:"pointer", position:"relative", overflow:"hidden" }}>
               {i===0 && <div style={{ position:"absolute", top:14, right:14, fontSize:10, background:`${T.gold}20`, color:T.gold, padding:"3px 9px", borderRadius:20, fontFamily:"'Inter',sans-serif", fontWeight:700 }}>★ TOP</div>}
@@ -1244,7 +1175,7 @@ function CustomersPage({ isMobile }) {
           ))}
         </div>
       )}
-      {modal && <Drawer title="Add Customer" subtitle="Add a new customer to your CRM" onClose={() => setModal(false)}>
+      {modal && <Drawer title="Add Customer" onClose={() => setModal(false)}>
         <FInput label="Customer Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Kofi Mensah"/>
         <FInput label="Phone Number"  value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="e.g. 0244 123 456"/>
         <FTextarea label="Note (optional)" value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="Any details about this customer…"/>
@@ -1270,52 +1201,34 @@ function CustomersPage({ isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   DEBTS PAGE  — Supabase connected
+   DEBTS PAGE — Supabase connected
 ══════════════════════════════════════════════════════ */
 function DebtsPage({ isMobile }) {
-  const [debts, setDebts]     = useState([]);
-  const [modal, setModal]     = useState(false);
+  const [debts,   setDebts]   = useState([]);
+  const [modal,   setModal]   = useState(false);
   const [loading, setLoading] = useState(true);
-  const [form, setForm]       = useState({ name:"", type:"owed_to_me", amount:"", due:"", note:"" });
+  const [form,    setForm]    = useState({ name:"", type:"owed_to_me", amount:"", due:"", note:"" });
 
-  const loadDebts = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-    const { data, error } = await supabase
-      .from('debts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
     if (!error) setDebts(data || []);
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadDebts(); }, [loadDebts]);
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     if (!form.name || !form.amount) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('debts').insert({
-      user_id: user.id,
-      name:    form.name,
-      type:    form.type,
-      amount:  +form.amount,
-      due:     form.due || null,
-      note:    form.note,
-    });
-    if (!error) {
-      setModal(false);
-      setForm({ name:"", type:"owed_to_me", amount:"", due:"", note:"" });
-      loadDebts();
-    }
+    await supabase.from('debts').insert({ user_id:user.id, name:form.name, type:form.type, amount:+form.amount, due:form.due||null, note:form.note });
+    setModal(false); setForm({ name:"", type:"owed_to_me", amount:"", due:"", note:"" }); load();
   };
 
-  const settle = async (id) => {
-    await supabase.from('debts').delete().eq('id', id);
-    loadDebts();
-  };
+  const settle = async (id) => { await supabase.from('debts').delete().eq('id', id); load(); };
 
   const owedToMe = debts.filter(d => d.type === "owed_to_me");
   const iOwe     = debts.filter(d => d.type === "i_owe");
@@ -1332,7 +1245,7 @@ function DebtsPage({ isMobile }) {
         <StatCard label="Net Position" value={fmt(netDebt)} color={netDebt>=0?T.gold:T.rose} sub={netDebt>=0?"You're ahead":"You owe more"}/>
       </div>
       {loading ? (
-        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading debts...</div>
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading...</div>
       ) : (
         <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:20 }}>
           <div>
@@ -1371,7 +1284,7 @@ function DebtsPage({ isMobile }) {
           </div>
         </div>
       )}
-      {modal && <Drawer title="Add Debt / Credit" subtitle="Record money owed or borrowed" onClose={() => setModal(false)}>
+      {modal && <Drawer title="Add Debt / Credit" onClose={() => setModal(false)}>
         <FInput label="Person / Company Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Kofi Mensah"/>
         <FSelect label="Type" options={[{value:"owed_to_me",label:"💚 Owed to Me"},{value:"i_owe",label:"❤ I Owe"}]} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}/>
         <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
@@ -1387,94 +1300,145 @@ function DebtsPage({ isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   REPORTS PAGE
+   REPORTS PAGE — fully Supabase connected
 ══════════════════════════════════════════════════════ */
-function ReportsPage({ data, isMobile }) {
-  const income   = data.income.reduce((s,i)=>s+i.amount,0);
-  const expenses = data.expenses.reduce((s,e)=>s+e.amount,0);
-  const salesRev = data.sales.reduce((s,s2)=>s+s2.qty*s2.price,0);
-  const profit   = income - expenses;
-  const margin   = income>0 ? ((profit/income)*100).toFixed(1) : "0.0";
+function ReportsPage({ isMobile }) {
+  const [inc,  setInc]  = useState([]);
+  const [exp,  setExp]  = useState([]);
+  const [sal,  setSal]  = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const weekly = [
-    {d:"Mon",i:600,e:300},{d:"Tue",i:400,e:500},{d:"Wed",i:900,e:200},
-    {d:"Thu",i:1200,e:600},{d:"Fri",i:750,e:400},{d:"Sat",i:320,e:180},{d:"Sun",i:0,e:0},
-  ];
-  const catExp  = data.expenses.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+e.amount; return a; },{});
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      const [i, e, s] = await Promise.all([
+        supabase.from('income').select('*').eq('user_id', user.id),
+        supabase.from('expenses').select('*').eq('user_id', user.id),
+        supabase.from('sales').select('*').eq('user_id', user.id),
+      ]);
+      setInc(i.data || []); setExp(e.data || []); setSal(s.data || []);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const totalInc = inc.reduce((s,i)=>s+(+i.amount),0);
+  const totalExp = exp.reduce((s,e)=>s+(+e.amount),0);
+  const salesRev = sal.reduce((s,s2)=>s+(+s2.qty * +s2.price),0);
+  const profit   = totalInc - totalExp;
+  const margin   = totalInc>0 ? ((profit/totalInc)*100).toFixed(1) : "0.0";
+
+  const catExp  = exp.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+(+e.amount); return a; },{});
   const catData = Object.entries(catExp).map(([name,value])=>({name,value}));
+
+  // Group income by month for chart
+  const monthMap = {};
+  inc.forEach(i => { const m=i.date?.slice(0,7)||""; monthMap[m]={...(monthMap[m]||{m,i:0,e:0}),i:(monthMap[m]?.i||0)+(+i.amount)}; });
+  exp.forEach(e => { const m=e.date?.slice(0,7)||""; monthMap[m]={...(monthMap[m]||{m,i:0,e:0}),e:(monthMap[m]?.e||0)+(+e.amount)}; });
+  const monthly = Object.values(monthMap).sort((a,b)=>a.m.localeCompare(b.m)).slice(-6).map(x=>({...x,m:x.m.slice(5)}));
 
   return (
     <div className="fade">
       <PageBanner img={HERO_IMGS.dashboard} title="Reports" sub="Your complete financial picture at a glance"/>
-      <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:isMobile?"18px":"26px 30px", marginBottom:20 }}>
-        <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:20, fontFamily:"'Inter',sans-serif" }}>Profit & Loss Summary</div>
-        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)", gap:isMobile?16:24 }}>
-          {[{l:"Total Income",v:fmt(income),c:T.emerald},{l:"Total Expenses",v:fmt(expenses),c:T.rose},{l:"Sales Revenue",v:fmt(salesRev),c:T.sapphire},{l:"Net Profit",v:fmt(profit),c:profit>=0?T.gold:T.rose}].map(({l,v,c})=>(
-            <div key={l} style={{ borderLeft:`3px solid ${c}`, paddingLeft:14 }}>
-              <div style={{ fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", marginBottom:6 }}>{l}</div>
-              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?20:26, color:c, fontWeight:700 }}>{v}</div>
+      {loading ? (
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading reports...</div>
+      ) : (<>
+        <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:isMobile?"18px":"26px 30px", marginBottom:20 }}>
+          <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:20, fontFamily:"'Inter',sans-serif" }}>Profit & Loss Summary</div>
+          <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)", gap:isMobile?16:24 }}>
+            {[{l:"Total Income",v:fmt(totalInc),c:T.emerald},{l:"Total Expenses",v:fmt(totalExp),c:T.rose},{l:"Sales Revenue",v:fmt(salesRev),c:T.sapphire},{l:"Net Profit",v:fmt(profit),c:profit>=0?T.gold:T.rose}].map(({l,v,c})=>(
+              <div key={l} style={{ borderLeft:`3px solid ${c}`, paddingLeft:14 }}>
+                <div style={{ fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", marginBottom:6 }}>{l}</div>
+                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?20:26, color:c, fontWeight:700 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
+          {[{l:"Profit Margin",v:`${margin}%`,n:"of income is profit",c:T.gold},{l:"Expense Ratio",v:`${totalInc>0?((totalExp/totalInc)*100).toFixed(1):0}%`,n:"of income spent",c:T.rose},{l:"Total Transactions",v:`${inc.length+exp.length}`,n:"income + expense entries",c:T.sapphire}].map(({l,v,n,c})=>(
+            <div key={l} style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:"18px 16px", textAlign:"center" }}>
+              <div style={{ fontSize:10, color:T.fog, textTransform:"uppercase", letterSpacing:1.1, fontFamily:"'Inter',sans-serif", marginBottom:8 }}>{l}</div>
+              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?26:34, color:c, fontWeight:700 }}>{v}</div>
+              <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:5 }}>{n}</div>
             </div>
           ))}
         </div>
-      </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
-        {[{l:"Profit Margin",v:`${margin}%`,n:"of income is profit",c:T.gold},{l:"Expense Ratio",v:`${income>0?((expenses/income)*100).toFixed(1):0}%`,n:"of income spent",c:T.rose},{l:"Revenue Growth",v:"+18%",n:"vs last month",c:T.emerald}].map(({l,v,n,c})=>(
-          <div key={l} style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:"18px 16px", textAlign:"center" }}>
-            <div style={{ fontSize:10, color:T.fog, textTransform:"uppercase", letterSpacing:1.1, fontFamily:"'Inter',sans-serif", marginBottom:8 }}>{l}</div>
-            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?26:34, color:c, fontWeight:700 }}>{v}</div>
-            <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:5 }}>{n}</div>
+        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:16 }}>
+          <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:22 }}>
+            <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Monthly Income vs Expenses</div>
+            {monthly.length === 0 ? (
+              <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif", textAlign:"center", padding:"30px 0" }}>No data yet</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={monthly} margin={{ top:4, right:4, bottom:0, left:-20 }}>
+                  <defs>
+                    <linearGradient id="rwi" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.emerald} stopOpacity={.3}/><stop offset="95%" stopColor={T.emerald} stopOpacity={0}/></linearGradient>
+                    <linearGradient id="rwe" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.rose} stopOpacity={.2}/><stop offset="95%" stopColor={T.rose} stopOpacity={0}/></linearGradient>
+                  </defs>
+                  <XAxis dataKey="m" tick={{ fill:T.fog, fontSize:11 }} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<CTip/>}/>
+                  <Area type="monotone" dataKey="i" stroke={T.emerald} fill="url(#rwi)" strokeWidth={2} name="Income"/>
+                  <Area type="monotone" dataKey="e" stroke={T.rose}    fill="url(#rwe)" strokeWidth={2} name="Expenses"/>
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
-        ))}
-      </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:16 }}>
-        <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:22 }}>
-          <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>This Week — Daily Trend</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={weekly} margin={{ top:4, right:4, bottom:0, left:-20 }}>
-              <defs>
-                <linearGradient id="rwi" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={T.emerald} stopOpacity={.3}/>
-                  <stop offset="95%" stopColor={T.emerald} stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="rwe" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={T.rose} stopOpacity={.2}/>
-                  <stop offset="95%" stopColor={T.rose} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="d" tick={{ fill:T.fog, fontSize:11 }} axisLine={false} tickLine={false}/>
-              <YAxis tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false}/>
-              <Tooltip content={<CTip/>}/>
-              <Area type="monotone" dataKey="i" stroke={T.emerald} fill="url(#rwi)" strokeWidth={2}/>
-              <Area type="monotone" dataKey="e" stroke={T.rose}    fill="url(#rwe)" strokeWidth={2}/>
-            </AreaChart>
-          </ResponsiveContainer>
+          <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:22 }}>
+            <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Expenses by Category</div>
+            {catData.length === 0 ? (
+              <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif", textAlign:"center", padding:"30px 0" }}>No expenses yet</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={catData} layout="vertical" margin={{ top:0, right:16, bottom:0, left:8 }}>
+                  <XAxis type="number" tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false} tickFormatter={v=>fmt(v)}/>
+                  <YAxis type="category" dataKey="name" tick={{ fill:T.ash, fontSize:11 }} axisLine={false} tickLine={false} width={85}/>
+                  <Tooltip content={<CTip/>}/>
+                  <Bar dataKey="value" radius={[0,6,6,0]}>
+                    {catData.map((_,i)=><Cell key={i} fill={SERIES_COLORS[i%SERIES_COLORS.length]}/>)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
-
-        <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:22 }}>
-          <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Expenses by Category</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={catData} layout="vertical" margin={{ top:0, right:16, bottom:0, left:8 }}>
-              <XAxis type="number" tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false} tickFormatter={v=>fmt(v)}/>
-              <YAxis type="category" dataKey="name" tick={{ fill:T.ash, fontSize:11 }} axisLine={false} tickLine={false} width={85}/>
-              <Tooltip content={<CTip/>}/>
-              <Bar dataKey="value" radius={[0,6,6,0]}>
-                {catData.map((_,i)=><Cell key={i} fill={SERIES_COLORS[i%SERIES_COLORS.length]}/>)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      </>)}
     </div>
   );
 }
 
 /* ══════════════════════════════════════════════════════
-   EXPORT PAGE
+   EXPORT PAGE — fully Supabase connected
 ══════════════════════════════════════════════════════ */
-function ExportPage({ data, isMobile }) {
+function ExportPage({ isMobile }) {
+  const [inc,      setInc]      = useState([]);
+  const [exp,      setExp]      = useState([]);
+  const [sal,      setSal]      = useState([]);
+  const [cust,     setCust]     = useState([]);
+  const [dbt,      setDbt]      = useState([]);
+  const [loading,  setLoading]  = useState(true);
   const [exported, setExported] = useState(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      const [i,e,s,c,d] = await Promise.all([
+        supabase.from('income').select('*').eq('user_id', user.id),
+        supabase.from('expenses').select('*').eq('user_id', user.id),
+        supabase.from('sales').select('*').eq('user_id', user.id),
+        supabase.from('customers').select('*').eq('user_id', user.id),
+        supabase.from('debts').select('*').eq('user_id', user.id),
+      ]);
+      setInc(i.data||[]); setExp(e.data||[]); setSal(s.data||[]); setCust(c.data||[]); setDbt(d.data||[]);
+      setLoading(false);
+    };
+    load();
+  }, []);
 
   const triggerDownload = (content, filename, mime) => {
     const blob = new Blob([content], { type: mime });
@@ -1496,48 +1460,22 @@ function ExportPage({ data, isMobile }) {
   const toJSON = (rows, cols) =>
     JSON.stringify(rows.map(r => Object.fromEntries(cols.map(c => [c.label, c.fn ? c.fn(r) : (r[c.key] ?? "")]))), null, 2);
 
-  const income    = data.income;
-  const expenses  = data.expenses;
-  const sales     = data.sales;
-  const customers = data.customers;
-  const debts     = data.debts;
-
-  const totalInc   = income.reduce((s,i)=>s+i.amount,0);
-  const totalExp   = expenses.reduce((s,e)=>s+e.amount,0);
-  const totalSales = sales.reduce((s,s2)=>s+s2.qty*s2.price,0);
+  const totalInc   = inc.reduce((s,i)=>s+(+i.amount),0);
+  const totalExp   = exp.reduce((s,e)=>s+(+e.amount),0);
+  const totalSales = sal.reduce((s,s2)=>s+(+s2.qty * +s2.price),0);
   const net        = totalInc - totalExp;
 
   const DATASETS = [
-    {
-      key:"income", label:"Income", icon:"💰", color:T.emerald,
-      count:income.length, total:fmt(totalInc),
-      cols:[{label:"Date",key:"date"},{label:"Source",key:"source"},{label:"Category",key:"category"},{label:"Amount (GHS)",fn:r=>r.amount.toFixed(2)}],
-      rows: income,
-    },
-    {
-      key:"expenses", label:"Expenses", icon:"📤", color:T.rose,
-      count:expenses.length, total:fmt(totalExp),
-      cols:[{label:"Date",key:"date"},{label:"Description",key:"description"},{label:"Category",key:"category"},{label:"Amount (GHS)",fn:r=>r.amount.toFixed(2)}],
-      rows: expenses,
-    },
-    {
-      key:"sales", label:"Sales", icon:"🛒", color:T.gold,
-      count:sales.length, total:fmt(totalSales),
-      cols:[{label:"Date",key:"date"},{label:"Product",key:"product"},{label:"Qty",key:"qty"},{label:"Unit Price (GHS)",fn:r=>r.price.toFixed(2)},{label:"Total (GHS)",fn:r=>(r.qty*r.price).toFixed(2)},{label:"Customer",key:"customer"}],
-      rows: sales,
-    },
-    {
-      key:"customers", label:"Customers", icon:"👥", color:T.sapphire,
-      count:customers.length, total:`${customers.length} records`,
-      cols:[{label:"Name",key:"name"},{label:"Phone",key:"phone"},{label:"Purchases",key:"purchases"},{label:"Total Spent (GHS)",fn:r=>(r.totalSpent||0).toFixed(2)},{label:"Last Seen",key:"lastSeen"},{label:"Note",key:"note"}],
-      rows: customers,
-    },
-    {
-      key:"debts", label:"Debts & Credits", icon:"⟳", color:T.amethyst,
-      count:debts.length, total:`${debts.length} entries`,
-      cols:[{label:"Name",key:"name"},{label:"Type",fn:r=>r.type==="owed_to_me"?"Owed to Me":"I Owe"},{label:"Amount (GHS)",fn:r=>r.amount.toFixed(2)},{label:"Due",key:"due"},{label:"Note",key:"note"}],
-      rows: debts,
-    },
+    { key:"income",    label:"Income",          icon:"💰", color:T.emerald,  count:inc.length,  total:fmt(totalInc),
+      cols:[{label:"Date",key:"date"},{label:"Source",key:"source"},{label:"Category",key:"category"},{label:"Amount (GHS)",fn:r=>(+r.amount).toFixed(2)}], rows:inc },
+    { key:"expenses",  label:"Expenses",         icon:"📤", color:T.rose,     count:exp.length,  total:fmt(totalExp),
+      cols:[{label:"Date",key:"date"},{label:"Description",key:"description"},{label:"Category",key:"category"},{label:"Amount (GHS)",fn:r=>(+r.amount).toFixed(2)}], rows:exp },
+    { key:"sales",     label:"Sales",            icon:"🛒", color:T.gold,     count:sal.length,  total:fmt(totalSales),
+      cols:[{label:"Date",key:"date"},{label:"Product",key:"product"},{label:"Qty",key:"qty"},{label:"Unit Price",fn:r=>(+r.price).toFixed(2)},{label:"Total",fn:r=>((+r.qty)*(+r.price)).toFixed(2)},{label:"Customer",key:"customer"}], rows:sal },
+    { key:"customers", label:"Customers",        icon:"👥", color:T.sapphire, count:cust.length, total:`${cust.length} records`,
+      cols:[{label:"Name",key:"name"},{label:"Phone",key:"phone"},{label:"Purchases",key:"purchases"},{label:"Total Spent",fn:r=>(+r.total_spent||0).toFixed(2)},{label:"Last Seen",key:"last_seen"},{label:"Note",key:"note"}], rows:cust },
+    { key:"debts",     label:"Debts & Credits",  icon:"⟳", color:T.amethyst, count:dbt.length,  total:`${dbt.length} entries`,
+      cols:[{label:"Name",key:"name"},{label:"Type",fn:r=>r.type==="owed_to_me"?"Owed to Me":"I Owe"},{label:"Amount",fn:r=>(+r.amount).toFixed(2)},{label:"Due",key:"due"},{label:"Note",key:"note"}], rows:dbt },
   ];
 
   const buildPL = () => {
@@ -1546,125 +1484,99 @@ function ExportPage({ data, isMobile }) {
       "MONEYBOOK GHANA — PROFIT & LOSS SUMMARY",
       `Generated: ${now}`,
       "═══════════════════════════════════════",
-      "",
-      `Total Income:      GHS ${totalInc.toFixed(2)}`,
-      `Total Expenses:    GHS ${totalExp.toFixed(2)}`,
-      `Sales Revenue:     GHS ${totalSales.toFixed(2)}`,
-      `Net Profit/Loss:   GHS ${net.toFixed(2)}`,
-      `Profit Margin:     ${totalInc>0?((net/totalInc)*100).toFixed(1):0}%`,
-      "",
-      "═══════════════════════════════════════",
-      "INCOME BREAKDOWN",
-      "───────────────────────────────────────",
-      ...income.map(i=>`${i.date}  ${i.source.padEnd(30)}  GHS ${i.amount.toFixed(2)}`),
-      "",
-      "EXPENSE BREAKDOWN",
-      "───────────────────────────────────────",
-      ...expenses.map(e=>`${e.date}  ${e.description.padEnd(30)}  GHS ${e.amount.toFixed(2)}`),
-      "",
-      "SALES BREAKDOWN",
-      "───────────────────────────────────────",
-      ...sales.map(s=>`${s.date}  ${s.product.padEnd(30)}  ${s.qty}x GHS ${s.price.toFixed(2)} = GHS ${(s.qty*s.price).toFixed(2)}`),
+      `Total Income:    GHS ${totalInc.toFixed(2)}`,
+      `Total Expenses:  GHS ${totalExp.toFixed(2)}`,
+      `Sales Revenue:   GHS ${totalSales.toFixed(2)}`,
+      `Net Profit/Loss: GHS ${net.toFixed(2)}`,
+      `Profit Margin:   ${totalInc>0?((net/totalInc)*100).toFixed(1):0}%`,
+      "", "INCOME", "───────────────────────────────────────",
+      ...inc.map(i=>`${i.date}  ${(i.source||"").padEnd(30)}  GHS ${(+i.amount).toFixed(2)}`),
+      "", "EXPENSES", "───────────────────────────────────────",
+      ...exp.map(e=>`${e.date}  ${(e.description||"").padEnd(30)}  GHS ${(+e.amount).toFixed(2)}`),
+      "", "SALES", "───────────────────────────────────────",
+      ...sal.map(s=>`${s.date}  ${(s.product||"").padEnd(30)}  ${s.qty}x GHS ${(+s.price).toFixed(2)} = GHS ${((+s.qty)*(+s.price)).toFixed(2)}`),
     ].join("\n");
   };
 
-  const exportCSV  = (ds) => { triggerDownload(toCSV(ds.rows,ds.cols),  `moneybook-${ds.key}.csv`,  "text/csv"); setExported(ds.key); setTimeout(()=>setExported(null),2200); };
-  const exportJSON = (ds) => { triggerDownload(toJSON(ds.rows,ds.cols), `moneybook-${ds.key}.json`, "application/json"); setExported(ds.key+"_json"); setTimeout(()=>setExported(null),2200); };
-  const exportPL   = ()   => { triggerDownload(buildPL(), "moneybook-profit-loss.txt", "text/plain"); setExported("pl"); setTimeout(()=>setExported(null),2200); };
+  const notify = (key) => { setExported(key); setTimeout(()=>setExported(null), 2200); };
+  const exportCSV  = (ds) => { triggerDownload(toCSV(ds.rows,ds.cols), `moneybook-${ds.key}.csv`, "text/csv"); notify(ds.key); };
+  const exportJSON = (ds) => { triggerDownload(toJSON(ds.rows,ds.cols), `moneybook-${ds.key}.json`, "application/json"); notify(ds.key+"_j"); };
+  const exportPL   = ()   => { triggerDownload(buildPL(), "moneybook-pl.txt", "text/plain"); notify("pl"); };
   const exportAll  = ()   => {
     DATASETS.forEach((ds,i) => setTimeout(()=>triggerDownload(toCSV(ds.rows,ds.cols),`moneybook-${ds.key}.csv`,"text/csv"),i*300));
-    setTimeout(()=>triggerDownload(buildPL(),"moneybook-profit-loss.txt","text/plain"),DATASETS.length*300);
-    setExported("all"); setTimeout(()=>setExported(null),2800);
+    setTimeout(()=>triggerDownload(buildPL(),"moneybook-pl.txt","text/plain"),DATASETS.length*300);
+    notify("all");
   };
 
   return (
     <div className="fade">
       <PageBanner img={HERO_IMGS.dashboard} title="Export Data" sub="Download your financial records as CSV, JSON or plain text">
-        <Btn onClick={exportAll} variant="gold">⇩ Export Everything</Btn>
+        <Btn onClick={exportAll}>⇩ Export Everything</Btn>
       </PageBanner>
 
       {exported && (
-        <div className="fade" style={{ position:"fixed", bottom:isMobile?90:32, right:24, zIndex:900, background:T.emerald, color:"#06080F", padding:"12px 20px", borderRadius:12, fontFamily:"'EB Garamond',serif", fontSize:15, fontWeight:600, boxShadow:"0 8px 32px rgba(0,0,0,.5)", display:"flex", alignItems:"center", gap:8 }}>
+        <div className="fade" style={{ position:"fixed", bottom:isMobile?90:32, right:24, zIndex:900, background:T.emerald, color:"#06080F", padding:"12px 20px", borderRadius:12, fontFamily:"'EB Garamond',serif", fontSize:15, fontWeight:600, boxShadow:"0 8px 32px rgba(0,0,0,.5)" }}>
           ✓ Download started!
         </div>
       )}
 
-      <div style={{ background:`linear-gradient(135deg,#0D1A10,#081410)`, border:`1px solid ${T.emerald}30`, borderRadius:18, padding:isMobile?"18px 20px":"22px 28px", marginBottom:22 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:14 }}>
-          <div>
-            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.cream, fontWeight:700, marginBottom:4 }}>📄 Full P&L Summary</div>
-            <div style={{ fontSize:13, color:T.fog, fontFamily:"'Inter',sans-serif" }}>Income + Expenses + Sales — all in one formatted text file</div>
-          </div>
-          <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-            <Btn variant="outline" sm onClick={exportPL}>⇩ Download .txt</Btn>
-            <Btn variant="gold" sm onClick={exportAll}>⇩ Export All Files</Btn>
-          </div>
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)", gap:14, marginTop:18 }}>
-          {[{l:"Total Income",v:fmt(totalInc),c:T.emerald},{l:"Total Expenses",v:fmt(totalExp),c:T.rose},{l:"Sales Revenue",v:fmt(totalSales),c:T.sapphire},{l:"Net Profit",v:fmt(net),c:net>=0?T.gold:T.rose}].map(({l,v,c})=>(
-            <div key={l} style={{ borderLeft:`3px solid ${c}`, paddingLeft:12 }}>
-              <div style={{ fontSize:10, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", marginBottom:4 }}>{l}</div>
-              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?18:22, color:c, fontWeight:700 }}>{v}</div>
+      {loading ? (
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading your data...</div>
+      ) : (<>
+        <div style={{ background:`linear-gradient(135deg,#0D1A10,#081410)`, border:`1px solid ${T.emerald}30`, borderRadius:18, padding:isMobile?"18px 20px":"22px 28px", marginBottom:22 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:14 }}>
+            <div>
+              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.cream, fontWeight:700, marginBottom:4 }}>📄 Full P&L Summary</div>
+              <div style={{ fontSize:13, color:T.fog, fontFamily:"'Inter',sans-serif" }}>Income + Expenses + Sales in one formatted text file</div>
             </div>
-          ))}
+            <div style={{ display:"flex", gap:10 }}>
+              <Btn variant="outline" sm onClick={exportPL}>⇩ Download .txt</Btn>
+              <Btn variant="gold" sm onClick={exportAll}>⇩ Export All</Btn>
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)", gap:14, marginTop:18 }}>
+            {[{l:"Total Income",v:fmt(totalInc),c:T.emerald},{l:"Total Expenses",v:fmt(totalExp),c:T.rose},{l:"Sales Revenue",v:fmt(totalSales),c:T.sapphire},{l:"Net Profit",v:fmt(net),c:net>=0?T.gold:T.rose}].map(({l,v,c})=>(
+              <div key={l} style={{ borderLeft:`3px solid ${c}`, paddingLeft:12 }}>
+                <div style={{ fontSize:10, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", marginBottom:4 }}>{l}</div>
+                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?18:22, color:c, fontWeight:700 }}>{v}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:14 }}>
-        {DATASETS.map(ds => (
-          <div key={ds.key} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:44, height:44, borderRadius:12, background:`${ds.color}18`, border:`1px solid ${ds.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{ds.icon}</div>
-                <div>
-                  <div style={{ fontFamily:"'EB Garamond',serif", fontSize:17, color:T.cream, fontWeight:600 }}>{ds.label}</div>
-                  <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>{ds.count} records · {ds.total}</div>
+        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:14 }}>
+          {DATASETS.map(ds => (
+            <div key={ds.key} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:44, height:44, borderRadius:12, background:`${ds.color}18`, border:`1px solid ${ds.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{ds.icon}</div>
+                  <div>
+                    <div style={{ fontFamily:"'EB Garamond',serif", fontSize:17, color:T.cream, fontWeight:600 }}>{ds.label}</div>
+                    <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>{ds.count} records · {ds.total}</div>
+                  </div>
                 </div>
+                <Badge color={ds.color}>{ds.count}</Badge>
               </div>
-              <Badge color={ds.color}>{ds.count}</Badge>
-            </div>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
-              {ds.cols.map(c => (
-                <span key={c.label} style={{ padding:"3px 9px", borderRadius:20, background:`${T.rimHi}`, color:T.ash, fontSize:11, fontFamily:"'Inter',sans-serif" }}>{c.label}</span>
-              ))}
-            </div>
-            {ds.rows.length > 0 ? (
-              <div style={{ background:"#090D14", borderRadius:10, padding:"10px 12px", marginBottom:16, fontFamily:"monospace", fontSize:11, color:T.fog, maxHeight:72, overflow:"hidden" }}>
-                <div style={{ color:T.ash }}>{ds.cols.map(c=>c.label).join(", ")}</div>
-                {ds.rows.slice(0,2).map((r,i)=>(
-                  <div key={i} style={{ color:T.fog, marginTop:3 }}>{ds.cols.map(c=>(c.fn?c.fn(r):(r[c.key]??""))).join(", ")}</div>
-                ))}
-                {ds.rows.length>2 && <div style={{ color:T.rimHi, marginTop:3 }}>... {ds.rows.length-2} more rows</div>}
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
+                {ds.cols.map(c => <span key={c.label} style={{ padding:"3px 9px", borderRadius:20, background:`${T.rimHi}`, color:T.ash, fontSize:11, fontFamily:"'Inter',sans-serif" }}>{c.label}</span>)}
               </div>
-            ) : (
-              <div style={{ padding:"14px", background:"#090D14", borderRadius:10, marginBottom:16, color:T.fog, fontSize:13, fontFamily:"'EB Garamond',serif", textAlign:"center" }}>No data yet</div>
-            )}
-            <div style={{ display:"flex", gap:8 }}>
-              <Btn variant="gold" sm full onClick={()=>exportCSV(ds)} disabled={ds.rows.length===0}>⇩ CSV</Btn>
-              <Btn variant="ghost" sm full onClick={()=>exportJSON(ds)} disabled={ds.rows.length===0}>⇩ JSON</Btn>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22, marginTop:20 }}>
-        <div style={{ fontSize:12, color:T.ash, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", marginBottom:16 }}>About Export Formats</div>
-        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)", gap:16 }}>
-          {[
-            { fmt:".CSV", icon:"📊", desc:"Opens directly in Microsoft Excel, Google Sheets, or any spreadsheet app. Best for analysis and printing." },
-            { fmt:".JSON", icon:"🖥", desc:"Developer-friendly format. Use this to import your data into other apps, Supabase, or custom scripts." },
-            { fmt:".TXT", icon:"📄", desc:"Plain text P&L report. Easy to read, share by email or WhatsApp, or print as a statement." },
-          ].map(({fmt:f,icon,desc})=>(
-            <div key={f} style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
-              <div style={{ width:40, height:40, borderRadius:10, background:`${T.gold}15`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{icon}</div>
-              <div>
-                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:17, color:T.gold, fontWeight:700, marginBottom:4 }}>{f}</div>
-                <div style={{ fontSize:13, color:T.ash, fontFamily:"'EB Garamond',serif", lineHeight:1.6 }}>{desc}</div>
+              {ds.rows.length > 0 ? (
+                <div style={{ background:"#090D14", borderRadius:10, padding:"10px 12px", marginBottom:16, fontFamily:"monospace", fontSize:11, color:T.fog, maxHeight:72, overflow:"hidden" }}>
+                  <div style={{ color:T.ash }}>{ds.cols.map(c=>c.label).join(", ")}</div>
+                  {ds.rows.slice(0,2).map((r,i)=><div key={i} style={{ marginTop:3 }}>{ds.cols.map(c=>(c.fn?c.fn(r):(r[c.key]??""))).join(", ")}</div>)}
+                  {ds.rows.length>2 && <div style={{ color:T.rimHi, marginTop:3 }}>... {ds.rows.length-2} more rows</div>}
+                </div>
+              ) : (
+                <div style={{ padding:"14px", background:"#090D14", borderRadius:10, marginBottom:16, color:T.fog, fontSize:13, fontFamily:"'EB Garamond',serif", textAlign:"center" }}>No data yet</div>
+              )}
+              <div style={{ display:"flex", gap:8 }}>
+                <Btn variant="gold" sm full onClick={()=>exportCSV(ds)} disabled={ds.rows.length===0}>⇩ CSV</Btn>
+                <Btn variant="ghost" sm full onClick={()=>exportJSON(ds)} disabled={ds.rows.length===0}>⇩ JSON</Btn>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </>)}
     </div>
   );
 }
@@ -1682,43 +1594,36 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({
-          name:     session.user.user_metadata?.name     || session.user.email,
-          business: session.user.user_metadata?.business || "My Business",
-          avatar:   (session.user.user_metadata?.name    || session.user.email)[0].toUpperCase()
-        });
-      }
+      if (session?.user) setUser({
+        name:     session.user.user_metadata?.name     || session.user.email,
+        business: session.user.user_metadata?.business || "My Business",
+        avatar:   (session.user.user_metadata?.name    || session.user.email)[0].toUpperCase()
+      });
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({
-          name:     session.user.user_metadata?.name     || session.user.email,
-          business: session.user.user_metadata?.business || "My Business",
-          avatar:   (session.user.user_metadata?.name    || session.user.email)[0].toUpperCase()
-        });
-      } else {
-        setUser(null);
-      }
+      if (session?.user) setUser({
+        name:     session.user.user_metadata?.name     || session.user.email,
+        business: session.user.user_metadata?.business || "My Business",
+        avatar:   (session.user.user_metadata?.name    || session.user.email)[0].toUpperCase()
+      });
+      else setUser(null);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  if (!user) return (
-    <><style>{CSS}</style><AuthPage onAuth={u => { setUser(u); setData({ ...SEED, user:u }); }}/></>
-  );
+  if (!user) return <><style>{CSS}</style><AuthPage onAuth={u => setUser(u)}/></>;
 
   const pp = { data, setData, isMobile:isM };
   const pages = {
-    dashboard: <Dashboard    isMobile={isM}/>,
+    dashboard: <Dashboard    isMobile={isM} budgets={data.budgets}/>,
     income:    <IncomePage    isMobile={isM}/>,
     expenses:  <ExpensesPage  isMobile={isM}/>,
     sales:     <SalesPage     isMobile={isM}/>,
     budget:    <BudgetPage    {...pp}/>,
     customers: <CustomersPage isMobile={isM}/>,
     debts:     <DebtsPage     isMobile={isM}/>,
-    reports:   <ReportsPage   {...pp}/>,
-    export:    <ExportPage    {...pp}/>,
+    reports:   <ReportsPage   isMobile={isM}/>,
+    export:    <ExportPage    isMobile={isM}/>,
   };
 
   return (
