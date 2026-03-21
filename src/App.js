@@ -677,7 +677,123 @@ function Dashboard({ data, isMobile }) {
 /* ══════════════════════════════════════════════════════
    INCOME PAGE
 ══════════════════════════════════════════════════════ */
-function IncomePage({ data, setData, isMobile }) {
+function IncomePage({ isMobile }) {
+  const [income, setIncome]   = useState([]);
+  const [modal, setModal]     = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm]       = useState({ amount:"", date:todayS(), source:"", category:"Business Revenue" });
+  const cats = ["Business Revenue","Salary","Freelance","Food Sales","Investment","Other"];
+
+  const loadIncome = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('income')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false });
+    if (!error) setIncome(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadIncome(); }, [loadIncome]);
+
+  const save = async () => {
+    if (!form.amount || !form.source) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('income').insert({
+      user_id:  user.id,
+      amount:   +form.amount,
+      date:     form.date,
+      source:   form.source,
+      category: form.category,
+    });
+    if (!error) {
+      setModal(false);
+      setForm({ amount:"", date:todayS(), source:"", category:"Business Revenue" });
+      loadIncome();
+    }
+  };
+
+  const total = income.reduce((s,i) => s + +i.amount, 0);
+  const month = income.filter(i => i.date?.startsWith("2026-03")).reduce((s,i) => s + +i.amount, 0);
+  const today = income.filter(i => i.date === todayS()).reduce((s,i) => s + +i.amount, 0);
+
+  return (
+    <div className="fade">
+      <PageBanner img={HERO_IMGS.dashboard} title="Income" sub="All money received across your businesses">
+        <Btn onClick={() => setModal(true)}>+ Record Income</Btn>
+      </PageBanner>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
+        <StatCard label="All-Time Income" value={fmt(total)} color={T.emerald} glow/>
+        <StatCard label="This Month"      value={fmt(month)} color={T.gold}/>
+        <StatCard label="Today"           value={fmt(today)} color={T.sapphire}/>
+      </div>
+
+      {loading ? (
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
+          Loading income records...
+        </div>
+      ) : (
+        <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, overflow:"hidden" }}>
+          {income.length === 0 && (
+            <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
+              No income recorded yet. Click <strong style={{color:T.gold}}>+ Record Income</strong> to add your first entry.
+            </div>
+          )}
+          {isMobile ? (
+            income.map((item,i,arr) => (
+              <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ display:"flex", gap:11, alignItems:"center" }}>
+                  <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"💰"}</span>
+                  <div>
+                    <div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.source}</div>
+                    <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize:15, fontWeight:600, color:T.emerald, fontFamily:"'EB Garamond',serif" }}>+{fmt(item.amount)}</div>
+              </div>
+            ))
+          ) : (
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead>
+                <tr style={{ background:"#090D14" }}>
+                  {["","Date","Source","Category","Amount"].map(h => (
+                    <th key={h} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {income.map(item => (
+                  <tr key={item.id} className="row-hover" style={{ borderTop:`1px solid ${T.rim}` }}>
+                    <td style={{ padding:"12px 18px", fontSize:20 }}>{CATEGORY_ICONS[item.category]||"💰"}</td>
+                    <td style={{ padding:"12px 18px", fontSize:13, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.date}</td>
+                    <td style={{ padding:"12px 18px", fontSize:15, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.source}</td>
+                    <td style={{ padding:"12px 18px" }}><Badge color={T.emerald}>{item.category}</Badge></td>
+                    <td style={{ padding:"12px 18px", fontSize:16, fontWeight:600, color:T.emerald, fontFamily:"'Cormorant Garamond',serif" }}>+{fmt(item.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {modal && <Drawer title="Record Income" subtitle="Add a new income entry" onClose={() => setModal(false)}>
+        <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
+        <FInput label="Source / Description" value={form.source} onChange={e=>setForm(f=>({...f,source:e.target.value}))} placeholder="e.g. Client payment from Kofi…"/>
+        <FSelect label="Category" options={cats} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/>
+        <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+        <div style={{ display:"flex", gap:10, marginTop:8 }}>
+          <Btn full onClick={save}>Save Income</Btn>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
+        </div>
+      </Drawer>}
+    </div>
+  );
+} {
   const [modal, setModal] = useState(false);
   const [form, setForm]   = useState({ amount:"", date:todayS(), source:"", category:"Business Revenue" });
   const cats = ["Business Revenue","Salary","Freelance","Food Sales","Investment","Other"];
@@ -749,7 +865,109 @@ function IncomePage({ data, setData, isMobile }) {
 /* ══════════════════════════════════════════════════════
    EXPENSES PAGE
 ══════════════════════════════════════════════════════ */
-function ExpensesPage({ data, setData, isMobile }) {
+function ExpensesPage({ isMobile }) {
+  const [expenses, setExpenses] = useState([]);
+  const [modal, setModal]       = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const [form, setForm]         = useState({ amount:"", date:todayS(), description:"", category:"Food" });
+  const cats = ["Food","Transport","Business","Bills","Shopping","Healthcare","Entertainment","Education","Other"];
+
+  const loadExpenses = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false });
+    if (!error) setExpenses(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadExpenses(); }, [loadExpenses]);
+
+  const save = async () => {
+    if (!form.amount || !form.description) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('expenses').insert({
+      user_id:     user.id,
+      amount:      +form.amount,
+      date:        form.date,
+      description: form.description,
+      category:    form.category,
+    });
+    if (!error) {
+      setModal(false);
+      setForm({ amount:"", date:todayS(), description:"", category:"Food" });
+      loadExpenses();
+    }
+  };
+
+  const total = expenses.reduce((s,e) => s + +e.amount, 0);
+
+  return (
+    <div className="fade">
+      <PageBanner img={HERO_IMGS.budget} title="Expenses" sub="Every cedi spent, tracked with precision">
+        <Btn onClick={() => setModal(true)}>+ Add Expense</Btn>
+      </PageBanner>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
+        <StatCard label="Total Expenses" value={fmt(total)} color={T.rose} glow/>
+        <StatCard label="This Month"     value={fmt(expenses.filter(e=>e.date?.startsWith("2026-03")).reduce((s,e)=>s+(+e.amount),0))} color={T.gold}/>
+        <StatCard label="Today"          value={fmt(expenses.filter(e=>e.date===todayS()).reduce((s,e)=>s+(+e.amount),0))} color={T.rose}/>
+      </div>
+      {loading ? (
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading expenses...</div>
+      ) : (
+        <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, overflow:"hidden" }}>
+          {expenses.length === 0 && (
+            <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>No expenses yet. Click <strong style={{color:T.gold}}>+ Add Expense</strong> to add one.</div>
+          )}
+          {isMobile ? (
+            expenses.map((item,i,arr) => (
+              <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ display:"flex", gap:11, alignItems:"center" }}>
+                  <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"📤"}</span>
+                  <div><div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</div><div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div></div>
+                </div>
+                <div style={{ fontSize:15, fontWeight:600, color:T.rose, fontFamily:"'EB Garamond',serif" }}>-{fmt(item.amount)}</div>
+              </div>
+            ))
+          ) : (
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr style={{ background:"#090D14" }}>
+                {["","Date","Description","Category","Amount"].map(h=><th key={h} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {expenses.map(item => (
+                  <tr key={item.id} className="row-hover" style={{ borderTop:`1px solid ${T.rim}` }}>
+                    <td style={{ padding:"12px 18px", fontSize:20 }}>{CATEGORY_ICONS[item.category]||"📤"}</td>
+                    <td style={{ padding:"12px 18px", fontSize:13, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.date}</td>
+                    <td style={{ padding:"12px 18px", fontSize:15, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</td>
+                    <td style={{ padding:"12px 18px" }}><Badge color={T.rose}>{item.category}</Badge></td>
+                    <td style={{ padding:"12px 18px", fontSize:16, fontWeight:600, color:T.rose, fontFamily:"'Cormorant Garamond',serif" }}>-{fmt(item.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+      {modal && <Drawer title="Add Expense" subtitle="Record a new expense" onClose={() => setModal(false)}>
+        <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
+        <FInput label="Description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="What was this for?"/>
+        <FSelect label="Category" options={cats} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/>
+        <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+        <div style={{ display:"flex", gap:10, marginTop:8 }}>
+          <Btn full onClick={save}>Save Expense</Btn>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
+        </div>
+      </Drawer>}
+    </div>
+  );
+}
+ {
   const [modal, setModal] = useState(false);
   const [form, setForm]   = useState({ amount:"", date:todayS(), description:"", category:"Food" });
   const cats = ["Food","Transport","Business","Bills","Shopping","Healthcare","Entertainment","Education","Other"];
@@ -819,7 +1037,103 @@ function ExpensesPage({ data, setData, isMobile }) {
 /* ══════════════════════════════════════════════════════
    SALES PAGE
 ══════════════════════════════════════════════════════ */
-function SalesPage({ data, setData, isMobile }) {
+function SalesPage({ isMobile }) {
+  const [sales, setSales]     = useState([]);
+  const [modal, setModal]     = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm]       = useState({ product:"", qty:1, price:"", customer:"", date:todayS() });
+
+  const loadSales = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false });
+    if (!error) setSales(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadSales(); }, [loadSales]);
+
+  const save = async () => {
+    if (!form.product || !form.price) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('sales').insert({
+      user_id:  user.id,
+      product:  form.product,
+      qty:      +form.qty,
+      price:    +form.price,
+      customer: form.customer,
+      date:     form.date,
+    });
+    if (!error) {
+      setModal(false);
+      setForm({ product:"", qty:1, price:"", customer:"", date:todayS() });
+      loadSales();
+    }
+  };
+
+  const totalRev   = sales.reduce((s,s2) => s + (+s2.qty * +s2.price), 0);
+  const totalOrders = sales.length;
+
+  return (
+    <div className="fade">
+      <PageBanner img={HERO_IMGS.sales} title="Sales" sub="Track every product and service sold">
+        <Btn onClick={() => setModal(true)}>+ Record Sale</Btn>
+      </PageBanner>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
+        <StatCard label="Total Revenue"   value={fmt(totalRev)} color={T.gold} glow/>
+        <StatCard label="Total Orders"    value={`${totalOrders} orders`} color={T.sapphire}/>
+        <StatCard label="Avg Order Value" value={fmt(totalRev/Math.max(totalOrders,1))} color={T.emerald}/>
+      </div>
+      {loading ? (
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading sales...</div>
+      ) : (
+        <div style={{ display:"grid", gap:12 }}>
+          {sales.length === 0 && (
+            <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16 }}>No sales yet. Click <strong style={{color:T.gold}}>+ Record Sale</strong> to add one.</div>
+          )}
+          {sales.map(item => (
+            <div key={item.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:isMobile?"14px 16px":"18px 22px", display:"flex", justifyContent:"space-between", alignItems:isMobile?"flex-start":"center", flexDirection:isMobile?"column":"row", gap:isMobile?10:0 }}>
+              <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+                <div style={{ width:44, height:44, borderRadius:12, background:`${T.gold}18`, border:`1px solid ${T.gold}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🛒</div>
+                <div>
+                  <div style={{ fontSize:16, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{item.product}</div>
+                  <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>Qty: {item.qty} × {fmt(item.price)} · {item.date}</div>
+                  {item.customer && <div style={{ fontSize:12, color:T.sapphire, fontFamily:"'Inter',sans-serif", marginTop:1 }}>👤 {item.customer}</div>}
+                </div>
+              </div>
+              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?20:26, fontWeight:700, color:T.gold }}>{fmt(+item.qty * +item.price)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {modal && <Drawer title="Record Sale" subtitle="Log a product or service sale" onClose={() => setModal(false)}>
+        <FInput label="Product / Service" value={form.product} onChange={e=>setForm(f=>({...f,product:e.target.value}))} placeholder="e.g. Waakye large, n8n setup…"/>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          <FInput label="Quantity" type="number" value={form.qty} onChange={e=>setForm(f=>({...f,qty:e.target.value}))}/>
+          <FInput label="Unit Price (GHS)" type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
+        </div>
+        {form.qty && form.price && (
+          <div style={{ background:`${T.gold}12`, border:`1px solid ${T.gold}35`, borderRadius:10, padding:"10px 14px", marginBottom:14, fontFamily:"'Cormorant Garamond',serif", fontSize:18, color:T.gold, fontWeight:700 }}>
+            Total: {fmt(+form.qty * +form.price)}
+          </div>
+        )}
+        <FInput label="Customer (optional)" value={form.customer} onChange={e=>setForm(f=>({...f,customer:e.target.value}))} placeholder="Customer name"/>
+        <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+        <div style={{ display:"flex", gap:10, marginTop:8 }}>
+          <Btn full onClick={save}>Save Sale</Btn>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
+        </div>
+      </Drawer>}
+    </div>
+  );
+}
+ {
   const [modal, setModal] = useState(false);
   const [form, setForm]   = useState({ product:"", qty:1, price:"", customer:"", date:todayS() });
   const save = () => {
@@ -1085,7 +1399,115 @@ function BudgetPage({ data, setData, isMobile }) {
 /* ══════════════════════════════════════════════════════
    CUSTOMERS PAGE
 ══════════════════════════════════════════════════════ */
-function CustomersPage({ data, setData, isMobile }) {
+function CustomersPage({ isMobile }) {
+  const [customers, setCustomers] = useState([]);
+  const [modal, setModal]         = useState(false);
+  const [loading, setLoading]     = useState(true);
+  const [selected, setSel]        = useState(null);
+  const [form, setForm]           = useState({ name:"", phone:"", note:"" });
+
+  const loadCustomers = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('total_spent', { ascending: false });
+    if (!error) setCustomers(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadCustomers(); }, [loadCustomers]);
+
+  const save = async () => {
+    if (!form.name) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('customers').insert({
+      user_id:    user.id,
+      name:       form.name,
+      phone:      form.phone,
+      note:       form.note,
+      total_spent: 0,
+      purchases:  0,
+      last_seen:  todayS(),
+    });
+    if (!error) {
+      setModal(false);
+      setForm({ name:"", phone:"", note:"" });
+      loadCustomers();
+    }
+  };
+
+  const totalRev = customers.reduce((s,c) => s + (+c.total_spent||0), 0);
+  const topCust  = customers[0];
+
+  return (
+    <div className="fade">
+      <PageBanner img={HERO_IMGS.customers} title="Customers" sub="Your mini CRM — know who drives your revenue">
+        <Btn onClick={() => setModal(true)}>+ Add Customer</Btn>
+      </PageBanner>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
+        <StatCard label="Total Customers" value={customers.length}       color={T.sapphire}/>
+        <StatCard label="Total Revenue"   value={fmt(totalRev)}          color={T.gold} glow/>
+        <StatCard label="Top Customer"    value={topCust?.name||"—"}     color={T.emerald} sub={topCust?fmt(topCust.total_spent):""}/>
+      </div>
+      {loading ? (
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading customers...</div>
+      ) : (
+        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:14 }}>
+          {customers.length === 0 && (
+            <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16, gridColumn:"1/-1" }}>No customers yet.</div>
+          )}
+          {customers.map((c,i) => (
+            <div key={c.id} className="card-lift" onClick={() => setSel(c)} style={{ background:T.card, border:`1px solid ${i===0?T.gold+"45":T.rim}`, borderRadius:18, padding:22, cursor:"pointer", position:"relative", overflow:"hidden" }}>
+              {i===0 && <div style={{ position:"absolute", top:14, right:14, fontSize:10, background:`${T.gold}20`, color:T.gold, padding:"3px 9px", borderRadius:20, fontFamily:"'Inter',sans-serif", fontWeight:700 }}>★ TOP</div>}
+              <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:14 }}>
+                <div style={{ width:50, height:50, borderRadius:14, background:`linear-gradient(135deg,${SERIES_COLORS[i%SERIES_COLORS.length]}50,${SERIES_COLORS[i%SERIES_COLORS.length]}20)`, border:`1px solid ${SERIES_COLORS[i%SERIES_COLORS.length]}40`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, color:SERIES_COLORS[i%SERIES_COLORS.length], flexShrink:0, fontFamily:"'Cormorant Garamond',serif" }}>
+                  {c.name[0]}
+                </div>
+                <div>
+                  <div style={{ fontSize:17, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{c.name}</div>
+                  <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{c.phone}</div>
+                  {c.note && <div style={{ fontSize:12, color:T.ash, fontFamily:"'EB Garamond',serif", marginTop:2, fontStyle:"italic" }}>{c.note}</div>}
+                </div>
+              </div>
+              <div style={{ borderTop:`1px solid ${T.rim}`, paddingTop:12, display:"flex", justifyContent:"space-between" }}>
+                <div><div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginBottom:3 }}>Total Spent</div><div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.gold, fontWeight:700 }}>{fmt(c.total_spent||0)}</div></div>
+                <div style={{ textAlign:"right" }}><div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginBottom:3 }}>Purchases</div><div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.cream, fontWeight:700 }}>{c.purchases||0}x</div></div>
+              </div>
+              <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:8 }}>Last seen {c.last_seen}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {modal && <Drawer title="Add Customer" subtitle="Add a new customer to your CRM" onClose={() => setModal(false)}>
+        <FInput label="Customer Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Kofi Mensah"/>
+        <FInput label="Phone Number"  value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="e.g. 0244 123 456"/>
+        <FTextarea label="Note (optional)" value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="Any details about this customer…"/>
+        <div style={{ display:"flex", gap:10, marginTop:8 }}>
+          <Btn full onClick={save}>Save Customer</Btn>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
+        </div>
+      </Drawer>}
+      {selected && <Drawer title={selected.name} subtitle={`Customer profile · ${selected.phone}`} onClose={() => setSel(null)}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:20 }}>
+          {[{l:"Total Spent",v:fmt(selected.total_spent||0),c:T.gold},{l:"Purchases",v:`${selected.purchases||0}x`,c:T.sapphire}].map(({l,v,c})=>(
+            <div key={l} style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:12, padding:"14px 16px" }}>
+              <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginBottom:5 }}>{l}</div>
+              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, color:c, fontWeight:700 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize:14, color:T.ash, fontFamily:"'EB Garamond',serif", lineHeight:1.7, marginBottom:20 }}>{selected.note || "No notes for this customer."}</div>
+        <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif" }}>Last seen: {selected.last_seen}</div>
+      </Drawer>}
+    </div>
+  );
+}
+ {
   const [modal, setModal]   = useState(false);
   const [form, setForm]     = useState({ name:"", phone:"", note:"" });
   const [selected, setSel]  = useState(null);
@@ -1164,7 +1586,119 @@ function CustomersPage({ data, setData, isMobile }) {
 /* ══════════════════════════════════════════════════════
    DEBTS PAGE  (new feature)
 ══════════════════════════════════════════════════════ */
-function DebtsPage({ data, setData, isMobile }) {
+function DebtsPage({ isMobile }) {
+  const [debts, setDebts]     = useState([]);
+  const [modal, setModal]     = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm]       = useState({ name:"", type:"owed_to_me", amount:"", due:"", note:"" });
+
+  const loadDebts = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('debts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (!error) setDebts(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadDebts(); }, [loadDebts]);
+
+  const save = async () => {
+    if (!form.name || !form.amount) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('debts').insert({
+      user_id: user.id,
+      name:    form.name,
+      type:    form.type,
+      amount:  +form.amount,
+      due:     form.due || null,
+      note:    form.note,
+    });
+    if (!error) {
+      setModal(false);
+      setForm({ name:"", type:"owed_to_me", amount:"", due:"", note:"" });
+      loadDebts();
+    }
+  };
+
+  const settle = async (id) => {
+    await supabase.from('debts').delete().eq('id', id);
+    loadDebts();
+  };
+
+  const owedToMe = debts.filter(d => d.type === "owed_to_me");
+  const iOwe     = debts.filter(d => d.type === "i_owe");
+  const netDebt  = owedToMe.reduce((s,d)=>s+(+d.amount),0) - iOwe.reduce((s,d)=>s+(+d.amount),0);
+
+  return (
+    <div className="fade">
+      <PageBanner img={HERO_IMGS.sales} title="Debts & Credits" sub="Track who owes you and what you owe">
+        <Btn onClick={() => setModal(true)}>+ Add Entry</Btn>
+      </PageBanner>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
+        <StatCard label="Owed to Me"   value={fmt(owedToMe.reduce((s,d)=>s+(+d.amount),0))} color={T.emerald} glow/>
+        <StatCard label="I Owe"        value={fmt(iOwe.reduce((s,d)=>s+(+d.amount),0))}     color={T.rose}/>
+        <StatCard label="Net Position" value={fmt(netDebt)} color={netDebt>=0?T.gold:T.rose} sub={netDebt>=0?"You're ahead":"You owe more"}/>
+      </div>
+      {loading ? (
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading debts...</div>
+      ) : (
+        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:20 }}>
+          <div>
+            <div style={{ fontSize:12, color:T.emerald, textTransform:"uppercase", letterSpacing:1.2, fontFamily:"'Inter',sans-serif", marginBottom:12, paddingLeft:4 }}>💚 Owed to Me</div>
+            {owedToMe.length===0 && <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:14, padding:20, color:T.fog, fontFamily:"'EB Garamond',serif", textAlign:"center" }}>None</div>}
+            {owedToMe.map(d => (
+              <div key={d.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.emerald}30`, borderRadius:14, padding:18, marginBottom:10 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <div>
+                    <div style={{ fontSize:16, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{d.name}</div>
+                    {d.note && <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>{d.note}</div>}
+                    {d.due && <div style={{ fontSize:12, color:T.gold, fontFamily:"'Inter',sans-serif", marginTop:4 }}>Due: {d.due}</div>}
+                  </div>
+                  <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.emerald, fontWeight:700 }}>{fmt(d.amount)}</div>
+                </div>
+                <Btn variant="emerald" sm style={{ marginTop:12 }} onClick={() => settle(d.id)}>Mark Settled ✓</Btn>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div style={{ fontSize:12, color:T.rose, textTransform:"uppercase", letterSpacing:1.2, fontFamily:"'Inter',sans-serif", marginBottom:12, paddingLeft:4 }}>❤ I Owe</div>
+            {iOwe.length===0 && <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:14, padding:20, color:T.fog, fontFamily:"'EB Garamond',serif", textAlign:"center" }}>None</div>}
+            {iOwe.map(d => (
+              <div key={d.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rose}30`, borderRadius:14, padding:18, marginBottom:10 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <div>
+                    <div style={{ fontSize:16, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{d.name}</div>
+                    {d.note && <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>{d.note}</div>}
+                    {d.due && <div style={{ fontSize:12, color:T.rose, fontFamily:"'Inter',sans-serif", marginTop:4 }}>Due: {d.due}</div>}
+                  </div>
+                  <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.rose, fontWeight:700 }}>{fmt(d.amount)}</div>
+                </div>
+                <Btn variant="danger" sm style={{ marginTop:12 }} onClick={() => settle(d.id)}>Mark Paid ✓</Btn>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {modal && <Drawer title="Add Debt / Credit" subtitle="Record money owed or borrowed" onClose={() => setModal(false)}>
+        <FInput label="Person / Company Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Kofi Mensah"/>
+        <FSelect label="Type" options={[{value:"owed_to_me",label:"💚 Owed to Me"},{value:"i_owe",label:"❤ I Owe"}]} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}/>
+        <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
+        <FInput label="Due Date (optional)" type="date" value={form.due} onChange={e=>setForm(f=>({...f,due:e.target.value}))}/>
+        <FTextarea label="Note (optional)" value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="What is this for?"/>
+        <div style={{ display:"flex", gap:10, marginTop:8 }}>
+          <Btn full onClick={save}>Save</Btn>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
+        </div>
+      </Drawer>}
+    </div>
+  );
+} {
   const [modal, setModal] = useState(false);
   const [form, setForm]   = useState({ name:"", type:"owed_to_me", amount:"", due:"", note:"" });
 
@@ -1639,17 +2173,17 @@ export default function App() {
   );
 
   const pp = { data, setData, isMobile:isM };
-  const pages = {
-    dashboard: <Dashboard  {...pp}/>,
-    income:    <IncomePage {...pp}/>,
-    expenses:  <ExpensesPage {...pp}/>,
-    sales:     <SalesPage  {...pp}/>,
-    budget:    <BudgetPage {...pp}/>,
-    customers: <CustomersPage {...pp}/>,
-    debts:     <DebtsPage  {...pp}/>,
-    reports:   <ReportsPage {...pp}/>,
-    export:    <ExportPage  {...pp}/>,
-  };
+const pages = {
+  dashboard: <Dashboard  {...pp}/>,
+  income:    <IncomePage isMobile={isM}/>,
+  expenses:  <ExpensesPage isMobile={isM}/>,
+  sales:     <SalesPage  isMobile={isM}/>,
+  budget:    <BudgetPage {...pp}/>,
+  customers: <CustomersPage isMobile={isM}/>,
+  debts:     <DebtsPage  isMobile={isM}/>,
+  reports:   <ReportsPage {...pp}/>,
+  export:    <ExportPage  {...pp}/>,
+};
 
   return (
     <>
