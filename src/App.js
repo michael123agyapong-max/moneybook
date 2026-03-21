@@ -480,10 +480,22 @@ function Dashboard({ isMobile, budgets }) {
   const budgetSpent  = activeBudget ? activeBudget.categories.reduce((s,c)=>s+c.spent,0) : 0;
   const budgetLeft   = activeBudget ? activeBudget.totalCash - budgetSpent : 0;
 
-  const monthly = [
-    {m:"Oct",i:2200,e:1100},{m:"Nov",i:2800,e:1200},{m:"Dec",i:3400,e:1800},
-    {m:"Jan",i:2100,e:900},{m:"Feb",i:3900,e:2100},{m:"Mar",i:2850,e:1550},
-  ];
+  // Build real monthly chart from actual data
+  const monthMap = {};
+  income.forEach(i => {
+    const m = i.date?.slice(0,7); if (!m) return;
+    if (!monthMap[m]) monthMap[m] = { m, i:0, e:0 };
+    monthMap[m].i += +i.amount;
+  });
+  expenses.forEach(e => {
+    const m = e.date?.slice(0,7); if (!m) return;
+    if (!monthMap[m]) monthMap[m] = { m, i:0, e:0 };
+    monthMap[m].e += +e.amount;
+  });
+  const monthly = Object.values(monthMap)
+    .sort((a,b) => a.m.localeCompare(b.m))
+    .map(x => ({ ...x, m: x.m.slice(5) })); // show "03" style label
+
   const spendByCat = expenses.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+(+e.amount); return a; },{});
   const pieData    = Object.entries(spendByCat).map(([n,v])=>({name:n,value:v}));
   const recent     = [...income.slice(0,3).map(i=>({...i,type:"income"})), ...expenses.slice(0,3).map(e=>({...e,type:"expense"}))]
@@ -541,19 +553,30 @@ function Dashboard({ isMobile, budgets }) {
 
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Monthly Income vs Expenses</div>
-          <ResponsiveContainer width="100%" height={170}>
-            <AreaChart data={monthly} margin={{ top:4, right:4, bottom:0, left:-20 }}>
-              <defs>
-                <linearGradient id="dai" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.emerald} stopOpacity={.3}/><stop offset="95%" stopColor={T.emerald} stopOpacity={0}/></linearGradient>
-                <linearGradient id="dae" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.rose} stopOpacity={.25}/><stop offset="95%" stopColor={T.rose} stopOpacity={0}/></linearGradient>
-              </defs>
-              <XAxis dataKey="m" tick={{ fill:T.fog, fontSize:11 }} axisLine={false} tickLine={false}/>
-              <YAxis tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false} tickFormatter={v=>`${v/1000}k`}/>
-              <Tooltip content={<CTip/>}/>
-              <Area type="monotone" dataKey="i" stroke={T.emerald} fill="url(#dai)" strokeWidth={2.5} name="Income"/>
-              <Area type="monotone" dataKey="e" stroke={T.rose}    fill="url(#dae)" strokeWidth={2.5} name="Expenses"/>
-            </AreaChart>
-          </ResponsiveContainer>
+          {monthly.length === 0 ? (
+            <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif", textAlign:"center", padding:"40px 0" }}>Add income or expenses to see your monthly chart.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={170}>
+              <AreaChart data={monthly} margin={{ top:4, right:4, bottom:0, left:-20 }}>
+                <defs>
+                  <linearGradient id="dai" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.emerald} stopOpacity={.3}/><stop offset="95%" stopColor={T.emerald} stopOpacity={0}/></linearGradient>
+                  <linearGradient id="dae" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.rose} stopOpacity={.25}/><stop offset="95%" stopColor={T.rose} stopOpacity={0}/></linearGradient>
+                </defs>
+                <XAxis dataKey="m" tick={{ fill:T.fog, fontSize:11 }} axisLine={false} tickLine={false}/>
+                <YAxis tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false} tickFormatter={v=>`${v/1000}k`}/>
+                <Tooltip content={<CTip/>}/>
+                <Area type="monotone" dataKey="i" stroke={T.emerald} fill="url(#dai)" strokeWidth={2.5} name="Income"/>
+                <Area type="monotone" dataKey="e" stroke={T.rose}    fill="url(#dae)" strokeWidth={2.5} name="Expenses"/>
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+          <div style={{ display:"flex", gap:20, marginTop:8 }}>
+            {[{c:T.emerald,l:"Income"},{c:T.rose,l:"Expenses"}].map(({c,l})=>(
+              <div key={l} style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:T.ash, fontFamily:"'Inter',sans-serif" }}>
+                <div style={{ width:18, height:3, borderRadius:2, background:c }}/>{l}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1300,13 +1323,19 @@ function DebtsPage({ isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   REPORTS PAGE — fully Supabase connected
+   REPORTS PAGE — real data + trend simulator
 ══════════════════════════════════════════════════════ */
 function ReportsPage({ isMobile }) {
-  const [inc,  setInc]  = useState([]);
-  const [exp,  setExp]  = useState([]);
-  const [sal,  setSal]  = useState([]);
+  const [inc,     setInc]     = useState([]);
+  const [exp,     setExp]     = useState([]);
+  const [sal,     setSal]     = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Simulator state
+  const [simMonths,       setSimMonths]       = useState(3);
+  const [simIncGrowth,    setSimIncGrowth]    = useState(5);
+  const [simExpGrowth,    setSimExpGrowth]    = useState(3);
+  const [showSim,         setShowSim]         = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -1332,11 +1361,44 @@ function ReportsPage({ isMobile }) {
   const catExp  = exp.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+(+e.amount); return a; },{});
   const catData = Object.entries(catExp).map(([name,value])=>({name,value}));
 
-  // Group income by month for chart
+  // Build real monthly data
   const monthMap = {};
-  inc.forEach(i => { const m=i.date?.slice(0,7)||""; monthMap[m]={...(monthMap[m]||{m,i:0,e:0}),i:(monthMap[m]?.i||0)+(+i.amount)}; });
-  exp.forEach(e => { const m=e.date?.slice(0,7)||""; monthMap[m]={...(monthMap[m]||{m,i:0,e:0}),e:(monthMap[m]?.e||0)+(+e.amount)}; });
-  const monthly = Object.values(monthMap).sort((a,b)=>a.m.localeCompare(b.m)).slice(-6).map(x=>({...x,m:x.m.slice(5)}));
+  inc.forEach(i => { const m=i.date?.slice(0,7); if(!m) return; if(!monthMap[m]) monthMap[m]={m,i:0,e:0}; monthMap[m].i+=(+i.amount); });
+  exp.forEach(e => { const m=e.date?.slice(0,7); if(!m) return; if(!monthMap[m]) monthMap[m]={m,i:0,e:0}; monthMap[m].e+=(+e.amount); });
+  const monthly = Object.values(monthMap).sort((a,b)=>a.m.localeCompare(b.m)).map(x=>({...x,label:x.m.slice(5),forecast:false}));
+
+  // Trend simulation — linear projection from last 2 real months
+  const buildForecast = () => {
+    if (monthly.length === 0) return [];
+    const last = monthly[monthly.length-1];
+    const prev = monthly[monthly.length-2] || last;
+    // Average monthly growth from actual data
+    const avgInc = monthly.reduce((s,m)=>s+m.i,0) / monthly.length;
+    const avgExp = monthly.reduce((s,m)=>s+m.e,0) / monthly.length;
+    const iGrowth = 1 + simIncGrowth/100;
+    const eGrowth = 1 + simExpGrowth/100;
+    const result = [];
+    let curI = last.i || avgInc;
+    let curE = last.e || avgExp;
+    // get next month label
+    const lastDate = new Date(last.m + "-01");
+    for (let n=1; n<=simMonths; n++) {
+      curI = curI * iGrowth;
+      curE = curE * eGrowth;
+      lastDate.setMonth(lastDate.getMonth()+1);
+      const label = String(lastDate.getMonth()+1).padStart(2,"0");
+      result.push({ m: lastDate.toISOString().slice(0,7), label, i:Math.round(curI), e:Math.round(curE), forecast:true });
+    }
+    return result;
+  };
+
+  const chartData = showSim ? [...monthly, ...buildForecast()] : monthly;
+
+  const CustomDot = (props) => {
+    const { cx, cy, payload } = props;
+    if (!payload.forecast) return null;
+    return <circle cx={cx} cy={cy} r={4} fill={T.gold} stroke={T.bg} strokeWidth={2}/>;
+  };
 
   return (
     <div className="fade">
@@ -1344,6 +1406,7 @@ function ReportsPage({ isMobile }) {
       {loading ? (
         <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading reports...</div>
       ) : (<>
+        {/* P&L Summary */}
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:isMobile?"18px":"26px 30px", marginBottom:20 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:20, fontFamily:"'Inter',sans-serif" }}>Profit & Loss Summary</div>
           <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)", gap:isMobile?16:24 }}>
@@ -1356,8 +1419,9 @@ function ReportsPage({ isMobile }) {
           </div>
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
-          {[{l:"Profit Margin",v:`${margin}%`,n:"of income is profit",c:T.gold},{l:"Expense Ratio",v:`${totalInc>0?((totalExp/totalInc)*100).toFixed(1):0}%`,n:"of income spent",c:T.rose},{l:"Total Transactions",v:`${inc.length+exp.length}`,n:"income + expense entries",c:T.sapphire}].map(({l,v,n,c})=>(
+        {/* Key metrics */}
+        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:12, marginBottom:20 }}>
+          {[{l:"Profit Margin",v:`${margin}%`,n:"of income is profit",c:T.gold},{l:"Expense Ratio",v:`${totalInc>0?((totalExp/totalInc)*100).toFixed(1):0}%`,n:"of income spent",c:T.rose},{l:"Total Entries",v:`${inc.length+exp.length}`,n:"income + expense records",c:T.sapphire}].map(({l,v,n,c})=>(
             <div key={l} style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:"18px 16px", textAlign:"center" }}>
               <div style={{ fontSize:10, color:T.fog, textTransform:"uppercase", letterSpacing:1.1, fontFamily:"'Inter',sans-serif", marginBottom:8 }}>{l}</div>
               <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?26:34, color:c, fontWeight:700 }}>{v}</div>
@@ -1366,45 +1430,117 @@ function ReportsPage({ isMobile }) {
           ))}
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:16 }}>
-          <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:22 }}>
-            <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Monthly Income vs Expenses</div>
-            {monthly.length === 0 ? (
-              <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif", textAlign:"center", padding:"30px 0" }}>No data yet</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={monthly} margin={{ top:4, right:4, bottom:0, left:-20 }}>
-                  <defs>
-                    <linearGradient id="rwi" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.emerald} stopOpacity={.3}/><stop offset="95%" stopColor={T.emerald} stopOpacity={0}/></linearGradient>
-                    <linearGradient id="rwe" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.rose} stopOpacity={.2}/><stop offset="95%" stopColor={T.rose} stopOpacity={0}/></linearGradient>
-                  </defs>
-                  <XAxis dataKey="m" tick={{ fill:T.fog, fontSize:11 }} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<CTip/>}/>
-                  <Area type="monotone" dataKey="i" stroke={T.emerald} fill="url(#rwi)" strokeWidth={2} name="Income"/>
-                  <Area type="monotone" dataKey="e" stroke={T.rose}    fill="url(#rwe)" strokeWidth={2} name="Expenses"/>
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+        {/* Main chart + simulator */}
+        <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22, marginBottom:20 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:12 }}>
+            <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif" }}>
+              Monthly Income vs Expenses {showSim && <span style={{ color:T.gold }}>+ Forecast</span>}
+            </div>
+            <button onClick={()=>setShowSim(v=>!v)} style={{ background:showSim?`${T.gold}20`:"transparent", border:`1px solid ${showSim?T.gold:T.rim}`, borderRadius:8, padding:"5px 14px", color:showSim?T.gold:T.fog, fontSize:13, cursor:"pointer", fontFamily:"'EB Garamond',serif", transition:"all .2s" }}>
+              {showSim ? "✦ Hide Forecast" : "✦ Show Forecast"}
+            </button>
           </div>
 
-          <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:22 }}>
-            <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Expenses by Category</div>
-            {catData.length === 0 ? (
-              <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif", textAlign:"center", padding:"30px 0" }}>No expenses yet</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={catData} layout="vertical" margin={{ top:0, right:16, bottom:0, left:8 }}>
-                  <XAxis type="number" tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false} tickFormatter={v=>fmt(v)}/>
-                  <YAxis type="category" dataKey="name" tick={{ fill:T.ash, fontSize:11 }} axisLine={false} tickLine={false} width={85}/>
-                  <Tooltip content={<CTip/>}/>
-                  <Bar dataKey="value" radius={[0,6,6,0]}>
-                    {catData.map((_,i)=><Cell key={i} fill={SERIES_COLORS[i%SERIES_COLORS.length]}/>)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+          {/* Simulator controls */}
+          {showSim && (
+            <div style={{ background:`${T.gold}08`, border:`1px solid ${T.gold}25`, borderRadius:14, padding:"16px 18px", marginBottom:18 }}>
+              <div style={{ fontSize:12, color:T.gold, fontFamily:"'Inter',sans-serif", fontWeight:600, marginBottom:12, textTransform:"uppercase", letterSpacing:1 }}>
+                📈 Trend Simulator — adjust growth assumptions
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)", gap:16 }}>
+                <div>
+                  <div style={{ fontSize:12, color:T.ash, fontFamily:"'Inter',sans-serif", marginBottom:6 }}>Forecast Months: <strong style={{color:T.cream}}>{simMonths}</strong></div>
+                  <input type="range" min={1} max={12} value={simMonths} onChange={e=>setSimMonths(+e.target.value)}
+                    style={{ width:"100%", accentColor:T.gold }}/>
+                </div>
+                <div>
+                  <div style={{ fontSize:12, color:T.ash, fontFamily:"'Inter',sans-serif", marginBottom:6 }}>Income Growth/mo: <strong style={{color:T.emerald}}>+{simIncGrowth}%</strong></div>
+                  <input type="range" min={-20} max={50} value={simIncGrowth} onChange={e=>setSimIncGrowth(+e.target.value)}
+                    style={{ width:"100%", accentColor:T.emerald }}/>
+                </div>
+                <div>
+                  <div style={{ fontSize:12, color:T.ash, fontFamily:"'Inter',sans-serif", marginBottom:6 }}>Expense Growth/mo: <strong style={{color:T.rose}}>+{simExpGrowth}%</strong></div>
+                  <input type="range" min={-20} max={50} value={simExpGrowth} onChange={e=>setSimExpGrowth(+e.target.value)}
+                    style={{ width:"100%", accentColor:T.rose }}/>
+                </div>
+              </div>
+              {/* Forecast summary */}
+              {monthly.length > 0 && (() => {
+                const fc = buildForecast();
+                const lastReal = monthly[monthly.length-1];
+                const lastFc   = fc[fc.length-1];
+                const projProfit = lastFc ? lastFc.i - lastFc.e : 0;
+                return (
+                  <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:12, marginTop:14 }}>
+                    {[
+                      {l:`Month +${simMonths} Income`, v:fmt(lastFc?.i||0), c:T.emerald},
+                      {l:`Month +${simMonths} Expenses`, v:fmt(lastFc?.e||0), c:T.rose},
+                      {l:`Month +${simMonths} Profit`, v:fmt(projProfit), c:projProfit>=0?T.gold:T.rose},
+                    ].map(({l,v,c})=>(
+                      <div key={l} style={{ background:`${c}10`, border:`1px solid ${c}25`, borderRadius:10, padding:"10px 14px" }}>
+                        <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginBottom:4 }}>{l}</div>
+                        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, color:c, fontWeight:700 }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {chartData.length === 0 ? (
+            <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif", textAlign:"center", padding:"40px 0" }}>No data yet — add income or expenses to see your chart.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={chartData} margin={{ top:4, right:4, bottom:0, left:-20 }}>
+                <defs>
+                  <linearGradient id="rwi" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.emerald} stopOpacity={.3}/><stop offset="95%" stopColor={T.emerald} stopOpacity={0}/></linearGradient>
+                  <linearGradient id="rwe" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.rose} stopOpacity={.2}/><stop offset="95%" stopColor={T.rose} stopOpacity={0}/></linearGradient>
+                  <linearGradient id="rwif" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.gold} stopOpacity={.2}/><stop offset="95%" stopColor={T.gold} stopOpacity={0}/></linearGradient>
+                </defs>
+                <XAxis dataKey="label" tick={{ fill:T.fog, fontSize:11 }} axisLine={false} tickLine={false}/>
+                <YAxis tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false} tickFormatter={v=>`${(v/1000).toFixed(1)}k`}/>
+                <Tooltip content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const isForecast = payload[0]?.payload?.forecast;
+                  return (
+                    <div style={{ background:T.cardHi, border:`1px solid ${isForecast?T.gold:T.rim}`, borderRadius:10, padding:"10px 14px" }}>
+                      <div style={{ color:isForecast?T.gold:T.ash, fontSize:11, fontFamily:"'Inter',sans-serif", marginBottom:4 }}>{label} {isForecast?"(forecast)":"(actual)"}</div>
+                      {payload.map((p,i)=><div key={i} style={{ color:p.color||T.cream, fontFamily:"'EB Garamond',serif", fontSize:14, fontWeight:600 }}>{p.name}: {fmt(p.value)}</div>)}
+                    </div>
+                  );
+                }}/>
+                <Area type="monotone" dataKey="i" stroke={T.emerald} fill="url(#rwi)" strokeWidth={2} strokeDasharray="0" name="Income" dot={<CustomDot/>}/>
+                <Area type="monotone" dataKey="e" stroke={T.rose}    fill="url(#rwe)" strokeWidth={2} name="Expenses" dot={<CustomDot/>}/>
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+          <div style={{ display:"flex", gap:20, marginTop:10, flexWrap:"wrap" }}>
+            {[{c:T.emerald,l:"Actual Income"},{c:T.rose,l:"Actual Expenses"},{c:T.gold,l:"Forecast ✦"}].map(({c,l})=>(
+              <div key={l} style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:T.ash, fontFamily:"'Inter',sans-serif" }}>
+                <div style={{ width:18, height:3, borderRadius:2, background:c }}/>{l}
+              </div>
+            ))}
           </div>
+        </div>
+
+        {/* Category bar chart */}
+        <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:22 }}>
+          <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Expenses by Category</div>
+          {catData.length === 0 ? (
+            <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif", textAlign:"center", padding:"30px 0" }}>No expenses yet</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(180, catData.length * 40)}>
+              <BarChart data={catData} layout="vertical" margin={{ top:0, right:16, bottom:0, left:8 }}>
+                <XAxis type="number" tick={{ fill:T.fog, fontSize:10 }} axisLine={false} tickLine={false} tickFormatter={v=>fmt(v)}/>
+                <YAxis type="category" dataKey="name" tick={{ fill:T.ash, fontSize:11 }} axisLine={false} tickLine={false} width={90}/>
+                <Tooltip content={<CTip/>}/>
+                <Bar dataKey="value" radius={[0,6,6,0]}>
+                  {catData.map((_,i)=><Cell key={i} fill={SERIES_COLORS[i%SERIES_COLORS.length]}/>)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </>)}
     </div>
