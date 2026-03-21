@@ -468,12 +468,32 @@ function PageBanner({ img, title, sub, children }) {
 /* ══════════════════════════════════════════════════════
    DASHBOARD
 ══════════════════════════════════════════════════════ */
-function Dashboard({ data, isMobile }) {
-  const D = "2026-03-20";
-  const todayInc  = data.income.filter(i=>i.date===D).reduce((s,i)=>s+i.amount,0);
-  const todayExp  = data.expenses.filter(e=>e.date===D).reduce((s,e)=>s+e.amount,0);
-  const totalInc  = data.income.reduce((s,i)=>s+i.amount,0);
-  const totalExp  = data.expenses.reduce((s,e)=>s+e.amount,0);
+function Dashboard({ isMobile }) {
+  const [income,   setIncome]   = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [debts,    setDebts]    = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const [inc, exp, dbt] = await Promise.all([
+        supabase.from('income').select('*').eq('user_id', user.id),
+        supabase.from('expenses').select('*').eq('user_id', user.id),
+        supabase.from('debts').select('*').eq('user_id', user.id),
+      ]);
+      setIncome(inc.data || []);
+      setExpenses(exp.data || []);
+      setDebts(dbt.data || []);
+    };
+    load();
+  }, []);
+
+  const D = todayS();
+  const todayInc  = income.filter(i=>i.date===D).reduce((s,i)=>s+(+i.amount),0);
+  const todayExp  = expenses.filter(e=>e.date===D).reduce((s,e)=>s+(+e.amount),0);
+  const totalInc  = income.reduce((s,i)=>s+(+i.amount),0);
+  const totalExp  = expenses.reduce((s,e)=>s+(+e.amount),0);
   const net       = totalInc - totalExp;
   const budgets   = data.budgets;
   const activeBudget = budgets[0];
@@ -484,7 +504,7 @@ function Dashboard({ data, isMobile }) {
     {m:"Oct",i:2200,e:1100},{m:"Nov",i:2800,e:1200},{m:"Dec",i:3400,e:1800},
     {m:"Jan",i:2100,e:900},{m:"Feb",i:3900,e:2100},{m:"Mar",i:2850,e:1550},
   ];
-  const spendByCat = data.expenses.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+e.amount; return a; },{});
+  const spendByCat = expenses.reduce((a,e)=>{ a[e.category]=(a[e.category]||0)+e.amount; return a; },{});
   const pieData = Object.entries(spendByCat).map(([n,v])=>({name:n,value:v}));
   const recent = [...data.income.slice(0,3).map(i=>({...i,type:"income"})), ...data.expenses.slice(0,3).map(e=>({...e,type:"expense"}))]
     .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
@@ -594,8 +614,8 @@ function Dashboard({ data, isMobile }) {
 
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Debt Alerts</div>
-          {data.debts.length === 0 && <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif" }}>No debts recorded.</div>}
-          {data.debts.map(d => (
+          {debts.length === 0 && <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif" }}>No debts recorded.</div>}
+          {debts.map(d => (
             <div key={d.id} style={{ padding:"12px", background:d.type==="i_owe"?`${T.rose}10`:`${T.emerald}10`, border:`1px solid ${d.type==="i_owe"?T.rose:T.emerald}25`, borderRadius:10, marginBottom:10 }}>
               <div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{d.name}</div>
               <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>{d.type==="i_owe"?"You owe":"Owes you"} · Due {d.due}</div>
@@ -1690,7 +1710,7 @@ export default function App() {
 
   const pp = { data, setData, isMobile:isM };
   const pages = {
-    dashboard: <Dashboard    {...pp}/>,
+    dashboard: <Dashboard    isMobile={isM}/>,
     income:    <IncomePage    isMobile={isM}/>,
     expenses:  <ExpensesPage  isMobile={isM}/>,
     sales:     <SalesPage     isMobile={isM}/>,
