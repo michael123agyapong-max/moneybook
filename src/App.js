@@ -41,47 +41,12 @@ const CATEGORY_ICONS = {
    SEED DATA  (used for Budget / Reports / Export pages)
 ══════════════════════════════════════════════════════ */
 const SEED = {
-  income: [
-    { id:1, amount:1500, date:"2026-03-20", source:"Project Pro client",      category:"Business Revenue" },
-    { id:2, amount:800,  date:"2026-03-19", source:"MP Web & Automations",    category:"Business Revenue" },
-    { id:3, amount:350,  date:"2026-03-18", source:"Alpha Waakye catering",   category:"Food Sales"       },
-    { id:4, amount:200,  date:"2026-03-17", source:"Freelance fix",           category:"Freelance"        },
-    { id:5, amount:620,  date:"2026-03-15", source:"n8n setup – Kofi Mensah", category:"Business Revenue" },
-  ],
-  expenses: [
-    { id:1, amount:120, category:"Food",      description:"Office lunch",         date:"2026-03-20" },
-    { id:2, amount:35,  category:"Transport", description:"Uber to Osu",          date:"2026-03-20" },
-    { id:3, amount:280, category:"Business",  description:"Hosting & domains",    date:"2026-03-19" },
-    { id:4, amount:60,  category:"Food",      description:"Groceries",            date:"2026-03-18" },
-    { id:5, amount:45,  category:"Transport", description:"Trotro week",          date:"2026-03-17" },
-  ],
-  sales: [
-    { id:1, product:"Dissertation Chapter 3 Guide", qty:3,  price:150, customer:"UPSA Students", date:"2026-03-20" },
-    { id:2, product:"n8n Automation Setup",         qty:1,  price:800, customer:"Kofi Mensah",   date:"2026-03-19" },
-    { id:3, product:"Waakye – Office Order",        qty:20, price:18,  customer:"Tema Oil Corp", date:"2026-03-18" },
-    { id:4, product:"Website Design",               qty:1,  price:950, customer:"Ama Boateng",   date:"2026-03-15" },
-  ],
-  customers: [
-    { id:1, name:"Kofi Mensah",   phone:"0244 123 456", totalSpent:1200, purchases:3, lastSeen:"2026-03-19", note:"Repeat automation client" },
-    { id:2, name:"Ama Boateng",   phone:"0277 654 321", totalSpent:1050, purchases:4, lastSeen:"2026-03-15", note:"Website + branding"       },
-    { id:3, name:"Tema Oil Corp", phone:"030 212 3456", totalSpent:360,  purchases:2, lastSeen:"2026-03-18", note:"Weekly waakye order"       },
-    { id:4, name:"UPSA Students", phone:"—",            totalSpent:450,  purchases:6, lastSeen:"2026-03-20", note:"Bulk dissertation guides"  },
-  ],
-  budgets: [
-    {
-      id:1, name:"March Daily Budget", date:"2026-03-20", totalCash:500, color:T.gold,
-      categories:[
-        { id:1, name:"Food",      icon:"🍛", budget:80,  spent:120 },
-        { id:2, name:"Transport", icon:"🚕", budget:40,  spent:35  },
-        { id:3, name:"Shopping",  icon:"🛍", budget:100, spent:0   },
-        { id:4, name:"Other",     icon:"📦", budget:50,  spent:20  },
-      ],
-    },
-  ],
-  debts: [
-    { id:1, name:"Kofi Mensah",  type:"owed_to_me", amount:200,  due:"2026-04-01", note:"Balance on automation project" },
-    { id:2, name:"UPSA Printer", type:"i_owe",      amount:85,   due:"2026-03-25", note:"Printing invoice"             },
-  ],
+  income:    [],
+  expenses:  [],
+  sales:     [],
+  customers: [],
+  budgets:   [],
+  debts:     [],
 };
 
 /* ══════════════════════════════════════════════════════
