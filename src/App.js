@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
+import { supabase } from "./supabase";
 
 /* ══════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -37,7 +38,7 @@ const CATEGORY_ICONS = {
 };
 
 /* ══════════════════════════════════════════════════════
-   SEED DATA
+   SEED DATA  (used for Budget / Reports / Export pages)
 ══════════════════════════════════════════════════════ */
 const SEED = {
   income: [
@@ -111,25 +112,19 @@ const CSS = `
   ::-webkit-scrollbar-track { background: #06080F; }
   ::-webkit-scrollbar-thumb { background: #1A2535; border-radius:4px; }
   ::-webkit-scrollbar-thumb:hover { background: #243348; }
-
   .fade { animation: fadeUp .4s cubic-bezier(.22,.68,0,1.2) both; }
   .fade-1 { animation-delay:.05s; }
   .fade-2 { animation-delay:.1s; }
   .fade-3 { animation-delay:.15s; }
   @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
-
   .glow-btn { transition: all .2s; }
   .glow-btn:hover { box-shadow: 0 0 28px #D4A85355; transform: translateY(-1px); }
-
   .nav-link { transition: all .18s; }
   .nav-link:hover { background: rgba(212,168,83,.08) !important; color: #D4A853 !important; }
-
   .row-hover { transition: background .15s; }
   .row-hover:hover { background: #16202C; }
-
   .card-lift { transition: transform .2s, box-shadow .2s, border-color .2s; }
   .card-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.5); border-color: #243348 !important; }
-
   input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: #D4A85370 !important;
@@ -143,15 +138,11 @@ const CSS = `
   .tab:hover { color: #D4A853 !important; }
   .pulse { animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-  .shimmer-line { background: linear-gradient(90deg,#0C1018 25%,#16202C 50%,#0C1018 75%); background-size:200%;
-    animation: shimmer 1.5s infinite; border-radius:4px; }
-  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 `;
 
 /* ══════════════════════════════════════════════════════
    PRIMITIVES
 ══════════════════════════════════════════════════════ */
-
 function Btn({ children, onClick, variant="gold", full, sm, style:s={}, disabled }) {
   const base = {
     display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6,
@@ -262,7 +253,7 @@ const CTip = ({ active, payload, label }) => {
 };
 
 /* ══════════════════════════════════════════════════════
-   UNSPLASH HERO IMAGES  (stable via seed)
+   HERO IMAGES
 ══════════════════════════════════════════════════════ */
 const HERO_IMGS = {
   auth:     "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=900&auto=format&fit=crop&q=70",
@@ -320,7 +311,6 @@ function AuthPage({ onAuth }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", background:T.bg }}>
-      {/* Left panel — image */}
       {!isM && (
         <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
           <img src={HERO_IMGS.auth} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", opacity:.55 }}/>
@@ -343,10 +333,7 @@ function AuthPage({ onAuth }) {
           </div>
         </div>
       )}
-
-      {/* Right panel — form */}
       <div style={{ width:isM?"100%":440, display:"flex", flexDirection:"column", justifyContent:"center", padding:isM?"32px 24px":"48px 40px", background:T.surface, borderLeft:`1px solid ${T.rim}` }}>
-        {/* Logo */}
         <div style={{ marginBottom:36 }}>
           <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:28 }}>
             <div style={{ width:44, height:44, borderRadius:12, background:`linear-gradient(135deg,${T.gold},${T.goldDk})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, color:T.bg, boxShadow:`0 6px 20px ${T.gold}40` }}>₵</div>
@@ -362,8 +349,6 @@ function AuthPage({ onAuth }) {
             {mode === "login" ? "Sign in to your dashboard" : "Start tracking your money today"}
           </div>
         </div>
-
-        {/* Tabs */}
         <div style={{ display:"flex", gap:4, marginBottom:24, background:T.card, borderRadius:12, padding:4 }}>
           {["login","signup"].map(t => (
             <button key={t} onClick={() => { setMode(t); setErr(""); }} style={{ flex:1, padding:"9px", border:"none", borderRadius:9, cursor:"pointer", fontFamily:"'EB Garamond',serif", fontWeight:600, fontSize:15, transition:"all .2s", background:mode===t?`linear-gradient(135deg,${T.gold},${T.goldDk})`:"transparent", color:mode===t?T.bg:T.fog }}>
@@ -371,29 +356,24 @@ function AuthPage({ onAuth }) {
             </button>
           ))}
         </div>
-
         {mode === "signup" && <>
           <FInput label="Full Name" placeholder="e.g. Michael Poku" value={name} onChange={e=>setName(e.target.value)}/>
           <FInput label="Business Name (optional)" placeholder="e.g. MP Web & Automations" value={biz} onChange={e=>setBiz(e.target.value)}/>
         </>}
         <FInput label="Email Address" type="email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
         <FInput label="Password" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} error={err}/>
-
         {mode==="login" && (
           <div style={{ textAlign:"right", marginTop:-8, marginBottom:16 }}>
             <span style={{ fontSize:14, color:T.gold, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Forgot password?</span>
           </div>
         )}
-
         <Btn full onClick={submit}>{loading ? "Please wait…" : mode==="login" ? "Sign In →" : "Create Account →"}</Btn>
-
         <div style={{ marginTop:20, textAlign:"center", fontSize:14, color:T.fog, fontFamily:"'Inter',sans-serif" }}>
           {mode==="login" ? "No account? " : "Have an account? "}
           <span onClick={()=>{setMode(mode==="login"?"signup":"login");setErr("");}} style={{ color:T.gold, cursor:"pointer", fontWeight:600 }}>
             {mode==="login" ? "Register free" : "Sign in"}
           </span>
         </div>
-
         <div style={{ marginTop:24, borderTop:`1px solid ${T.rim}`, paddingTop:20 }}>
           <button onClick={() => onAuth({ name:"Michael P.", business:"MP Web & Automations", avatar:"M" })} style={{ width:"100%", padding:"11px", background:"transparent", border:`1px dashed ${T.rim}`, borderRadius:10, color:T.fog, fontSize:14, cursor:"pointer", fontFamily:"'EB Garamond',serif", transition:"all .2s" }}>
             ⚡ Enter Demo — no account needed
@@ -431,7 +411,6 @@ function Sidebar({ active, setActive, user, onLogout }) {
           </div>
         </div>
       </div>
-
       <nav style={{ flex:1, padding:"14px 10px", overflowY:"auto" }}>
         {NAV.map(({ id, icon, label }) => (
           <button key={id} onClick={() => setActive(id)} className="nav-link"
@@ -442,7 +421,6 @@ function Sidebar({ active, setActive, user, onLogout }) {
           </button>
         ))}
       </nav>
-
       <div style={{ padding:"14px 16px", borderTop:`1px solid ${T.rim}` }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
           <div style={{ width:36, height:36, borderRadius:10, background:`linear-gradient(135deg,${T.sapphire},${T.amethyst})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#fff", flexShrink:0 }}>{user.avatar}</div>
@@ -504,7 +482,7 @@ function MobileNav({ active, setActive }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   PAGE HEADER BANNER  (image + overlay)
+   PAGE HEADER BANNER
 ══════════════════════════════════════════════════════ */
 function PageBanner({ img, title, sub, children }) {
   return (
@@ -550,7 +528,6 @@ function Dashboard({ data, isMobile }) {
 
   return (
     <div className="fade">
-      {/* Hero */}
       <div style={{ position:"relative", borderRadius:22, overflow:"hidden", marginBottom:26, background:"linear-gradient(120deg,#0A1428,#0E1E10)" }}>
         <img src={HERO_IMGS.dashboard} alt="" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", opacity:.18 }}/>
         <div style={{ position:"relative", padding:isMobile?"22px 20px":"32px 36px" }}>
@@ -571,7 +548,6 @@ function Dashboard({ data, isMobile }) {
         </div>
       </div>
 
-      {/* Stats */}
       <div style={{ display:"grid", gridTemplateColumns:cols, gap:14, marginBottom:22 }}>
         <StatCard label="Income Today"     value={fmt(todayInc)}           sub="↑ 3 sources"            color={T.emerald} icon="💰" glow delay="fade-1"/>
         <StatCard label="Expenses Today"   value={fmt(todayExp)}           sub="↓ 2 transactions"       color={T.rose}    icon="📤" delay="fade-2"/>
@@ -579,7 +555,6 @@ function Dashboard({ data, isMobile }) {
         <StatCard label="Net Profit Today" value={fmt(todayInc-todayExp)} sub={(todayInc-todayExp)>=0?"✓ In the green":"⚠ Net loss"} color={(todayInc-todayExp)>=0?T.emerald:T.rose} icon="📊" delay="fade-2"/>
       </div>
 
-      {/* Charts */}
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 5fr", gap:16, marginBottom:16 }}>
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>By Category</div>
@@ -631,7 +606,6 @@ function Dashboard({ data, isMobile }) {
         </div>
       </div>
 
-      {/* Recent + quick-add note */}
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"2fr 1fr", gap:16 }}>
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Recent Transactions</div>
@@ -653,7 +627,6 @@ function Dashboard({ data, isMobile }) {
           ))}
         </div>
 
-        {/* Quick tips / debt alerts */}
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>Debt Alerts</div>
           {data.debts.length === 0 && <div style={{ color:T.fog, fontSize:14, fontFamily:"'EB Garamond',serif" }}>No debts recorded.</div>}
@@ -675,7 +648,7 @@ function Dashboard({ data, isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   INCOME PAGE
+   INCOME PAGE  — Supabase connected
 ══════════════════════════════════════════════════════ */
 function IncomePage({ isMobile }) {
   const [income, setIncome]   = useState([]);
@@ -687,7 +660,7 @@ function IncomePage({ isMobile }) {
   const loadIncome = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     const { data, error } = await supabase
       .from('income')
       .select('*')
@@ -733,9 +706,7 @@ function IncomePage({ isMobile }) {
       </div>
 
       {loading ? (
-        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
-          Loading income records...
-        </div>
+        <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading income records...</div>
       ) : (
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, overflow:"hidden" }}>
           {income.length === 0 && (
@@ -793,77 +764,10 @@ function IncomePage({ isMobile }) {
       </Drawer>}
     </div>
   );
-} {
-  const [modal, setModal] = useState(false);
-  const [form, setForm]   = useState({ amount:"", date:todayS(), source:"", category:"Business Revenue" });
-  const cats = ["Business Revenue","Salary","Freelance","Food Sales","Investment","Other"];
-  const save = () => {
-    if (!form.amount || !form.source) return;
-    setData(d => ({ ...d, income:[{ id:uid(), ...form, amount:+form.amount }, ...d.income] }));
-    setModal(false);
-    setForm({ amount:"", date:todayS(), source:"", category:"Business Revenue" });
-  };
-  const total  = data.income.reduce((s,i)=>s+i.amount,0);
-  const month  = data.income.filter(i=>i.date.startsWith("2026-03")).reduce((s,i)=>s+i.amount,0);
-  const today  = data.income.filter(i=>i.date==="2026-03-20").reduce((s,i)=>s+i.amount,0);
-
-  return (
-    <div className="fade">
-      <PageBanner img={HERO_IMGS.dashboard} title="Income" sub="All money received across your businesses">
-        <Btn onClick={() => setModal(true)}>+ Record Income</Btn>
-      </PageBanner>
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
-        <StatCard label="All-Time Income" value={fmt(total)}  color={T.emerald} glow/>
-        <StatCard label="This Month"      value={fmt(month)}  color={T.gold}/>
-        <StatCard label="Today"           value={fmt(today)}  color={T.sapphire}/>
-      </div>
-      <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, overflow:"hidden" }}>
-        {isMobile ? (
-          data.income.map((item,i,arr) => (
-            <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ display:"flex", gap:11, alignItems:"center" }}>
-                <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"💰"}</span>
-                <div><div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.source}</div><div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div></div>
-              </div>
-              <div style={{ fontSize:15, fontWeight:600, color:T.emerald, fontFamily:"'EB Garamond',serif" }}>+{fmt(item.amount)}</div>
-            </div>
-          ))
-        ) : (
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr style={{ background:"#090D14" }}>
-              {["","Date","Source","Category","Amount"].map(h => <th key={h} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>{h}</th>)}
-            </tr></thead>
-            <tbody>
-              {data.income.map(item => (
-                <tr key={item.id} className="row-hover" style={{ borderTop:`1px solid ${T.rim}` }}>
-                  <td style={{ padding:"12px 18px", fontSize:20 }}>{CATEGORY_ICONS[item.category]||"💰"}</td>
-                  <td style={{ padding:"12px 18px", fontSize:13, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.date}</td>
-                  <td style={{ padding:"12px 18px", fontSize:15, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.source}</td>
-                  <td style={{ padding:"12px 18px" }}><Badge color={T.emerald}>{item.category}</Badge></td>
-                  <td style={{ padding:"12px 18px", fontSize:16, fontWeight:600, color:T.emerald, fontFamily:"'Cormorant Garamond',serif" }}>+{fmt(item.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {modal && <Drawer title="Record Income" subtitle="Add a new income entry" onClose={() => setModal(false)}>
-        <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
-        <FInput label="Source / Description" value={form.source} onChange={e=>setForm(f=>({...f,source:e.target.value}))} placeholder="e.g. Client payment from Kofi…"/>
-        <FSelect label="Category" options={cats} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/>
-        <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
-        <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn full onClick={save}>Save Income</Btn>
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
-        </div>
-      </Drawer>}
-    </div>
-  );
 }
 
 /* ══════════════════════════════════════════════════════
-   EXPENSES PAGE
+   EXPENSES PAGE  — Supabase connected
 ══════════════════════════════════════════════════════ */
 function ExpensesPage({ isMobile }) {
   const [expenses, setExpenses] = useState([]);
@@ -875,7 +779,7 @@ function ExpensesPage({ isMobile }) {
   const loadExpenses = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     const { data, error } = await supabase
       .from('expenses')
       .select('*')
@@ -922,14 +826,19 @@ function ExpensesPage({ isMobile }) {
       ) : (
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, overflow:"hidden" }}>
           {expenses.length === 0 && (
-            <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>No expenses yet. Click <strong style={{color:T.gold}}>+ Add Expense</strong> to add one.</div>
+            <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
+              No expenses yet. Click <strong style={{color:T.gold}}>+ Add Expense</strong> to add one.
+            </div>
           )}
           {isMobile ? (
             expenses.map((item,i,arr) => (
               <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <div style={{ display:"flex", gap:11, alignItems:"center" }}>
                   <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"📤"}</span>
-                  <div><div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</div><div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div></div>
+                  <div>
+                    <div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</div>
+                    <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div>
+                  </div>
                 </div>
                 <div style={{ fontSize:15, fontWeight:600, color:T.rose, fontFamily:"'EB Garamond',serif" }}>-{fmt(item.amount)}</div>
               </div>
@@ -967,75 +876,9 @@ function ExpensesPage({ isMobile }) {
     </div>
   );
 }
- {
-  const [modal, setModal] = useState(false);
-  const [form, setForm]   = useState({ amount:"", date:todayS(), description:"", category:"Food" });
-  const cats = ["Food","Transport","Business","Bills","Shopping","Healthcare","Entertainment","Education","Other"];
-  const save = () => {
-    if (!form.amount || !form.description) return;
-    setData(d => ({ ...d, expenses:[{ id:uid(), ...form, amount:+form.amount }, ...d.expenses] }));
-    setModal(false);
-    setForm({ amount:"", date:todayS(), description:"", category:"Food" });
-  };
-  const total = data.expenses.reduce((s,e)=>s+e.amount,0);
-
-  return (
-    <div className="fade">
-      <PageBanner img={HERO_IMGS.budget} title="Expenses" sub="Every cedi spent, tracked with precision">
-        <Btn onClick={() => setModal(true)}>+ Add Expense</Btn>
-      </PageBanner>
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
-        <StatCard label="Total Expenses" value={fmt(total)} color={T.rose} glow/>
-        <StatCard label="This Month"     value={fmt(data.expenses.filter(e=>e.date.startsWith("2026-03")).reduce((s,e)=>s+e.amount,0))} color={T.gold}/>
-        <StatCard label="Today"          value={fmt(data.expenses.filter(e=>e.date==="2026-03-20").reduce((s,e)=>s+e.amount,0))} color={T.rose}/>
-      </div>
-      <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, overflow:"hidden" }}>
-        {isMobile ? (
-          data.expenses.map((item,i,arr) => (
-            <div key={item.id} className="row-hover" style={{ padding:"14px 16px", borderBottom:i<arr.length-1?`1px solid ${T.rim}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ display:"flex", gap:11, alignItems:"center" }}>
-                <span style={{ fontSize:20 }}>{CATEGORY_ICONS[item.category]||"📤"}</span>
-                <div><div style={{ fontSize:14, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</div><div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.category} · {item.date}</div></div>
-              </div>
-              <div style={{ fontSize:15, fontWeight:600, color:T.rose, fontFamily:"'EB Garamond',serif" }}>-{fmt(item.amount)}</div>
-            </div>
-          ))
-        ) : (
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr style={{ background:"#090D14" }}>
-              {["","Date","Description","Category","Amount"].map(h=><th key={h} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>{h}</th>)}
-            </tr></thead>
-            <tbody>
-              {data.expenses.map(item => (
-                <tr key={item.id} className="row-hover" style={{ borderTop:`1px solid ${T.rim}` }}>
-                  <td style={{ padding:"12px 18px", fontSize:20 }}>{CATEGORY_ICONS[item.category]||"📤"}</td>
-                  <td style={{ padding:"12px 18px", fontSize:13, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{item.date}</td>
-                  <td style={{ padding:"12px 18px", fontSize:15, color:T.cream, fontFamily:"'EB Garamond',serif" }}>{item.description}</td>
-                  <td style={{ padding:"12px 18px" }}><Badge color={T.rose}>{item.category}</Badge></td>
-                  <td style={{ padding:"12px 18px", fontSize:16, fontWeight:600, color:T.rose, fontFamily:"'Cormorant Garamond',serif" }}>-{fmt(item.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {modal && <Drawer title="Add Expense" subtitle="Record a new expense" onClose={() => setModal(false)}>
-        <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
-        <FInput label="Description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="What was this for?"/>
-        <FSelect label="Category" options={cats} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/>
-        <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
-        <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn full onClick={save}>Save Expense</Btn>
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
-        </div>
-      </Drawer>}
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════════════
-   SALES PAGE
+   SALES PAGE  — Supabase connected
 ══════════════════════════════════════════════════════ */
 function SalesPage({ isMobile }) {
   const [sales, setSales]     = useState([]);
@@ -1046,7 +889,7 @@ function SalesPage({ isMobile }) {
   const loadSales = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     const { data, error } = await supabase
       .from('sales')
       .select('*')
@@ -1077,7 +920,7 @@ function SalesPage({ isMobile }) {
     }
   };
 
-  const totalRev   = sales.reduce((s,s2) => s + (+s2.qty * +s2.price), 0);
+  const totalRev    = sales.reduce((s,s2) => s + (+s2.qty * +s2.price), 0);
   const totalOrders = sales.length;
 
   return (
@@ -1095,7 +938,9 @@ function SalesPage({ isMobile }) {
       ) : (
         <div style={{ display:"grid", gap:12 }}>
           {sales.length === 0 && (
-            <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16 }}>No sales yet. Click <strong style={{color:T.gold}}>+ Record Sale</strong> to add one.</div>
+            <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
+              No sales yet. Click <strong style={{color:T.gold}}>+ Record Sale</strong> to add one.
+            </div>
           )}
           {sales.map(item => (
             <div key={item.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:isMobile?"14px 16px":"18px 22px", display:"flex", justifyContent:"space-between", alignItems:isMobile?"flex-start":"center", flexDirection:isMobile?"column":"row", gap:isMobile?10:0 }}>
@@ -1133,85 +978,24 @@ function SalesPage({ isMobile }) {
     </div>
   );
 }
- {
-  const [modal, setModal] = useState(false);
-  const [form, setForm]   = useState({ product:"", qty:1, price:"", customer:"", date:todayS() });
-  const save = () => {
-    if (!form.product || !form.price) return;
-    setData(d => ({ ...d, sales:[{ id:uid(), ...form, qty:+form.qty, price:+form.price }, ...d.sales] }));
-    setModal(false);
-    setForm({ product:"", qty:1, price:"", customer:"", date:todayS() });
-  };
-  const totalRev = data.sales.reduce((s,s2)=>s+s2.qty*s2.price,0);
-  const totalOrders = data.sales.length;
-
-  return (
-    <div className="fade">
-      <PageBanner img={HERO_IMGS.sales} title="Sales" sub="Track every product and service sold">
-        <Btn onClick={() => setModal(true)}>+ Record Sale</Btn>
-      </PageBanner>
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
-        <StatCard label="Total Revenue"  value={fmt(totalRev)}         color={T.gold}     glow/>
-        <StatCard label="Total Orders"   value={`${totalOrders} orders`}  color={T.sapphire}/>
-        <StatCard label="Avg Order Value" value={fmt(totalRev/Math.max(totalOrders,1))} color={T.emerald}/>
-      </div>
-      <div style={{ display:"grid", gap:12 }}>
-        {data.sales.map(item => (
-          <div key={item.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:isMobile?"14px 16px":"18px 22px", display:"flex", justifyContent:"space-between", alignItems:isMobile?"flex-start":"center", flexDirection:isMobile?"column":"row", gap:isMobile?10:0 }}>
-            <div style={{ display:"flex", gap:14, alignItems:"center" }}>
-              <div style={{ width:44, height:44, borderRadius:12, background:`${T.gold}18`, border:`1px solid ${T.gold}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🛒</div>
-              <div>
-                <div style={{ fontSize:16, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{item.product}</div>
-                <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>Qty: {item.qty} × {fmt(item.price)} · {item.date}</div>
-                {item.customer && <div style={{ fontSize:12, color:T.sapphire, fontFamily:"'Inter',sans-serif", marginTop:1 }}>👤 {item.customer}</div>}
-              </div>
-            </div>
-            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?20:26, fontWeight:700, color:T.gold }}>{fmt(item.qty*item.price)}</div>
-          </div>
-        ))}
-      </div>
-
-      {modal && <Drawer title="Record Sale" subtitle="Log a product or service sale" onClose={() => setModal(false)}>
-        <FInput label="Product / Service" value={form.product} onChange={e=>setForm(f=>({...f,product:e.target.value}))} placeholder="e.g. Waakye large, n8n setup…"/>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-          <FInput label="Quantity" type="number" value={form.qty} onChange={e=>setForm(f=>({...f,qty:e.target.value}))}/>
-          <FInput label="Unit Price (GHS)" type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
-        </div>
-        {form.qty && form.price && (
-          <div style={{ background:`${T.gold}12`, border:`1px solid ${T.gold}35`, borderRadius:10, padding:"10px 14px", marginBottom:14, fontFamily:"'Cormorant Garamond',serif", fontSize:18, color:T.gold, fontWeight:700 }}>
-            Total: {fmt(+form.qty * +form.price)}
-          </div>
-        )}
-        <FInput label="Customer (optional)" value={form.customer} onChange={e=>setForm(f=>({...f,customer:e.target.value}))} placeholder="Customer name"/>
-        <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
-        <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn full onClick={save}>Save Sale</Btn>
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
-        </div>
-      </Drawer>}
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════════════
-   BUDGET PAGE  — create / manage multiple budgets
+   BUDGET PAGE  — local state (not Supabase)
 ══════════════════════════════════════════════════════ */
 function BudgetPage({ data, setData, isMobile }) {
-  const [selected, setSelected]   = useState(data.budgets[0]?.id || null);
+  const [selected, setSelected]     = useState(data.budgets[0]?.id || null);
   const [createBudgetModal, setCBM] = useState(false);
-  const [addCatModal, setAddCat]  = useState(false);
-  const [recordModal, setRecord]  = useState(null); // category id
-  const [deleteCfm, setDeleteCfm] = useState(null);
+  const [addCatModal, setAddCat]    = useState(false);
+  const [recordModal, setRecord]    = useState(null);
+  const [deleteCfm, setDeleteCfm]   = useState(null);
+  const [nbForm, setNbForm]         = useState({ name:"", date:todayS(), totalCash:"" });
+  const [newCat, setNewCat]         = useState({ name:"", budget:"", icon:"📦" });
+  const [spendAmt, setSpendAmt]     = useState("");
 
-  // New budget form
-  const [nbForm, setNbForm] = useState({ name:"", date:todayS(), totalCash:"" });
-  const [newCat, setNewCat] = useState({ name:"", budget:"", icon:"📦" });
-  const [spendAmt, setSpendAmt] = useState("");
-
-  const budget = data.budgets.find(b => b.id === selected);
-  const totAlloc = budget ? budget.categories.reduce((s,c)=>s+c.budget,0) : 0;
-  const totSpent = budget ? budget.categories.reduce((s,c)=>s+c.spent,0) : 0;
-  const free     = budget ? budget.totalCash - totAlloc : 0;
+  const budget    = data.budgets.find(b => b.id === selected);
+  const totAlloc  = budget ? budget.categories.reduce((s,c)=>s+c.budget,0) : 0;
+  const totSpent  = budget ? budget.categories.reduce((s,c)=>s+c.spent,0) : 0;
+  const free      = budget ? budget.totalCash - totAlloc : 0;
 
   const createBudget = () => {
     if (!nbForm.name || !nbForm.totalCash) return;
@@ -1257,7 +1041,6 @@ function BudgetPage({ data, setData, isMobile }) {
         </div>
       </PageBanner>
 
-      {/* Budget selector tabs */}
       {data.budgets.length > 0 ? (
         <>
           <div style={{ display:"flex", gap:10, marginBottom:20, overflowX:"auto", paddingBottom:4 }}>
@@ -1271,7 +1054,6 @@ function BudgetPage({ data, setData, isMobile }) {
 
           {budget && (
             <>
-              {/* Budget hero */}
               <div style={{ background:"linear-gradient(135deg,#0D1E10,#081410)", border:`1px solid ${T.emerald}28`, borderRadius:18, padding:isMobile?"18px 20px":"22px 28px", marginBottom:20, position:"relative", overflow:"hidden" }}>
                 <div style={{ position:"absolute", top:-50, right:-50, width:180, height:180, borderRadius:"50%", background:`radial-gradient(circle,${T.emerald}14 0%,transparent 70%)` }}/>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:12 }}>
@@ -1288,7 +1070,6 @@ function BudgetPage({ data, setData, isMobile }) {
                 </div>
               </div>
 
-              {/* Category cards */}
               {budget.categories.length === 0 && (
                 <div style={{ textAlign:"center", padding:"48px 24px", background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>
                   No categories yet. Click <strong style={{ color:T.gold }}>+ Category</strong> to add one.
@@ -1312,7 +1093,6 @@ function BudgetPage({ data, setData, isMobile }) {
                           <button onClick={() => removeCategory(cat.id)} style={{ background:"none", border:"none", color:T.fog, cursor:"pointer", fontSize:14, opacity:.6 }}>✕</button>
                         </div>
                       </div>
-                      {/* Progress bar */}
                       <div style={{ height:8, background:T.night, borderRadius:4, marginBottom:14, overflow:"hidden" }}>
                         <div style={{ height:"100%", width:`${pct}%`, background:`linear-gradient(90deg,${bc}80,${bc})`, borderRadius:4, transition:"width .7s ease", boxShadow:`0 0 10px ${bc}55` }}/>
                       </div>
@@ -1323,9 +1103,7 @@ function BudgetPage({ data, setData, isMobile }) {
                       <div style={{ fontSize:15, fontWeight:600, color:over?T.rose:T.emerald, fontFamily:"'EB Garamond',serif", marginBottom:14 }}>
                         {over ? `GHS ${Math.abs(rem).toFixed(2)} overspent` : `GHS ${rem.toFixed(2)} remaining`}
                       </div>
-                      <Btn variant="outline" sm full onClick={() => { setRecord(cat.id); setSpendAmt(""); }}>
-                        Record Spend
-                      </Btn>
+                      <Btn variant="outline" sm full onClick={() => { setRecord(cat.id); setSpendAmt(""); }}>Record Spend</Btn>
                     </div>
                   );
                 })}
@@ -1342,7 +1120,6 @@ function BudgetPage({ data, setData, isMobile }) {
         </div>
       )}
 
-      {/* Create Budget Modal */}
       {createBudgetModal && <Drawer title="Create New Budget" subtitle="Set up a daily or event-based budget" onClose={() => setCBM(false)}>
         <FInput label="Budget Name" value={nbForm.name} onChange={e=>setNbForm(f=>({...f,name:e.target.value}))} placeholder="e.g. March Daily Budget, Event Budget…"/>
         <FInput label="Total Cash Available (GHS)" type="number" value={nbForm.totalCash} onChange={e=>setNbForm(f=>({...f,totalCash:e.target.value}))} placeholder="e.g. 500"/>
@@ -1356,7 +1133,6 @@ function BudgetPage({ data, setData, isMobile }) {
         </div>
       </Drawer>}
 
-      {/* Add Category Modal */}
       {addCatModal && <Drawer title="Add Category" subtitle={`Adding to: ${budget?.name}`} onClose={() => setAddCat(false)}>
         <FInput label="Category Name" value={newCat.name} onChange={e=>setNewCat(f=>({...f,name:e.target.value}))} placeholder="e.g. Food, Transport, Bills…"/>
         <FInput label="Budget Amount (GHS)" type="number" value={newCat.budget} onChange={e=>setNewCat(f=>({...f,budget:e.target.value}))} placeholder="e.g. 80"/>
@@ -1373,7 +1149,6 @@ function BudgetPage({ data, setData, isMobile }) {
         </div>
       </Drawer>}
 
-      {/* Record Spend Modal */}
       {recordModal && <Drawer title="Record Spending" subtitle={`Category: ${budget?.categories.find(c=>c.id===recordModal)?.name}`} onClose={() => setRecord(null)}>
         <FInput label="Amount Spent (GHS)" type="number" value={spendAmt} onChange={e=>setSpendAmt(e.target.value)} placeholder="0.00"/>
         <div style={{ display:"flex", gap:10, marginTop:8 }}>
@@ -1382,7 +1157,6 @@ function BudgetPage({ data, setData, isMobile }) {
         </div>
       </Drawer>}
 
-      {/* Delete Confirm */}
       {deleteCfm && <Drawer title="Delete Budget?" subtitle="This cannot be undone." onClose={() => setDeleteCfm(null)}>
         <div style={{ fontSize:15, color:T.ash, fontFamily:"'EB Garamond',serif", marginBottom:20, lineHeight:1.6 }}>
           Are you sure you want to delete <strong style={{ color:T.cream }}>{budget?.name}</strong>? All categories and spending data will be lost.
@@ -1397,7 +1171,7 @@ function BudgetPage({ data, setData, isMobile }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   CUSTOMERS PAGE
+   CUSTOMERS PAGE  — Supabase connected
 ══════════════════════════════════════════════════════ */
 function CustomersPage({ isMobile }) {
   const [customers, setCustomers] = useState([]);
@@ -1409,7 +1183,7 @@ function CustomersPage({ isMobile }) {
   const loadCustomers = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     const { data, error } = await supabase
       .from('customers')
       .select('*')
@@ -1426,13 +1200,13 @@ function CustomersPage({ isMobile }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { error } = await supabase.from('customers').insert({
-      user_id:    user.id,
-      name:       form.name,
-      phone:      form.phone,
-      note:       form.note,
+      user_id:     user.id,
+      name:        form.name,
+      phone:       form.phone,
+      note:        form.note,
       total_spent: 0,
-      purchases:  0,
-      last_seen:  todayS(),
+      purchases:   0,
+      last_seen:   todayS(),
     });
     if (!error) {
       setModal(false);
@@ -1450,16 +1224,18 @@ function CustomersPage({ isMobile }) {
         <Btn onClick={() => setModal(true)}>+ Add Customer</Btn>
       </PageBanner>
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
-        <StatCard label="Total Customers" value={customers.length}       color={T.sapphire}/>
-        <StatCard label="Total Revenue"   value={fmt(totalRev)}          color={T.gold} glow/>
-        <StatCard label="Top Customer"    value={topCust?.name||"—"}     color={T.emerald} sub={topCust?fmt(topCust.total_spent):""}/>
+        <StatCard label="Total Customers" value={customers.length}    color={T.sapphire}/>
+        <StatCard label="Total Revenue"   value={fmt(totalRev)}       color={T.gold} glow/>
+        <StatCard label="Top Customer"    value={topCust?.name||"—"}  color={T.emerald} sub={topCust?fmt(topCust.total_spent):""}/>
       </div>
       {loading ? (
         <div style={{ padding:40, textAlign:"center", color:T.fog, fontFamily:"'EB Garamond',serif", fontSize:16 }}>Loading customers...</div>
       ) : (
         <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:14 }}>
           {customers.length === 0 && (
-            <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16, gridColumn:"1/-1" }}>No customers yet.</div>
+            <div style={{ padding:40, textAlign:"center", color:T.fog, background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, fontFamily:"'EB Garamond',serif", fontSize:16, gridColumn:"1/-1" }}>
+              No customers yet. Click <strong style={{color:T.gold}}>+ Add Customer</strong> to add one.
+            </div>
           )}
           {customers.map((c,i) => (
             <div key={c.id} className="card-lift" onClick={() => setSel(c)} style={{ background:T.card, border:`1px solid ${i===0?T.gold+"45":T.rim}`, borderRadius:18, padding:22, cursor:"pointer", position:"relative", overflow:"hidden" }}>
@@ -1507,84 +1283,9 @@ function CustomersPage({ isMobile }) {
     </div>
   );
 }
- {
-  const [modal, setModal]   = useState(false);
-  const [form, setForm]     = useState({ name:"", phone:"", note:"" });
-  const [selected, setSel]  = useState(null);
-
-  const save = () => {
-    if (!form.name) return;
-    setData(d => ({ ...d, customers:[{ id:uid(), ...form, totalSpent:0, purchases:0, lastSeen:todayS() }, ...d.customers] }));
-    setModal(false);
-    setForm({ name:"", phone:"", note:"" });
-  };
-
-  const totalRev = data.customers.reduce((s,c)=>s+c.totalSpent,0);
-  const topCust  = [...data.customers].sort((a,b)=>b.totalSpent-a.totalSpent)[0];
-
-  return (
-    <div className="fade">
-      <PageBanner img={HERO_IMGS.customers} title="Customers" sub="Your mini CRM — know who drives your revenue">
-        <Btn onClick={() => setModal(true)}>+ Add Customer</Btn>
-      </PageBanner>
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
-        <StatCard label="Total Customers" value={data.customers.length}   color={T.sapphire}/>
-        <StatCard label="Total Revenue"   value={fmt(totalRev)}           color={T.gold} glow/>
-        <StatCard label="Top Customer"    value={topCust?.name||"—"}      color={T.emerald} sub={topCust?fmt(topCust.totalSpent):""}/>
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:14 }}>
-        {data.customers.map((c,i) => (
-          <div key={c.id} className="card-lift" onClick={() => setSel(c)} style={{ background:T.card, border:`1px solid ${i===0?T.gold+"45":T.rim}`, borderRadius:18, padding:22, cursor:"pointer", position:"relative", overflow:"hidden" }}>
-            {i===0 && <div style={{ position:"absolute", top:14, right:14, fontSize:10, background:`${T.gold}20`, color:T.gold, padding:"3px 9px", borderRadius:20, fontFamily:"'Inter',sans-serif", fontWeight:700, letterSpacing:.5 }}>★ TOP</div>}
-            <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:14 }}>
-              <div style={{ width:50, height:50, borderRadius:14, background:`linear-gradient(135deg,${SERIES_COLORS[i%SERIES_COLORS.length]}50,${SERIES_COLORS[i%SERIES_COLORS.length]}20)`, border:`1px solid ${SERIES_COLORS[i%SERIES_COLORS.length]}40`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, color:SERIES_COLORS[i%SERIES_COLORS.length], flexShrink:0, fontFamily:"'Cormorant Garamond',serif" }}>
-                {c.name[0]}
-              </div>
-              <div>
-                <div style={{ fontSize:17, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{c.name}</div>
-                <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif" }}>{c.phone}</div>
-                {c.note && <div style={{ fontSize:12, color:T.ash, fontFamily:"'EB Garamond',serif", marginTop:2, fontStyle:"italic" }}>{c.note}</div>}
-              </div>
-            </div>
-            <div style={{ borderTop:`1px solid ${T.rim}`, paddingTop:12, display:"flex", justifyContent:"space-between" }}>
-              <div><div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginBottom:3 }}>Total Spent</div><div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.gold, fontWeight:700 }}>{fmt(c.totalSpent)}</div></div>
-              <div style={{ textAlign:"right" }}><div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginBottom:3 }}>Purchases</div><div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.cream, fontWeight:700 }}>{c.purchases}x</div></div>
-            </div>
-            <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:8 }}>Last seen {c.lastSeen}</div>
-          </div>
-        ))}
-      </div>
-
-      {modal && <Drawer title="Add Customer" subtitle="Add a new customer to your CRM" onClose={() => setModal(false)}>
-        <FInput label="Customer Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Kofi Mensah"/>
-        <FInput label="Phone Number" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="e.g. 0244 123 456"/>
-        <FTextarea label="Note (optional)" value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="Any details about this customer…"/>
-        <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn full onClick={save}>Save Customer</Btn>
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
-        </div>
-      </Drawer>}
-
-      {selected && <Drawer title={selected.name} subtitle={`Customer profile · ${selected.phone}`} onClose={() => setSel(null)}>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:20 }}>
-          {[{l:"Total Spent",v:fmt(selected.totalSpent),c:T.gold},{l:"Purchases",v:`${selected.purchases}x`,c:T.sapphire}].map(({l,v,c})=>(
-            <div key={l} style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:12, padding:"14px 16px" }}>
-              <div style={{ fontSize:11, color:T.fog, fontFamily:"'Inter',sans-serif", marginBottom:5 }}>{l}</div>
-              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, color:c, fontWeight:700 }}>{v}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize:14, color:T.ash, fontFamily:"'EB Garamond',serif", lineHeight:1.7, marginBottom:20 }}>
-          {selected.note || "No notes for this customer."}
-        </div>
-        <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif" }}>Last seen: {selected.lastSeen}</div>
-      </Drawer>}
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════════════
-   DEBTS PAGE  (new feature)
+   DEBTS PAGE  — Supabase connected
 ══════════════════════════════════════════════════════ */
 function DebtsPage({ isMobile }) {
   const [debts, setDebts]     = useState([]);
@@ -1595,7 +1296,7 @@ function DebtsPage({ isMobile }) {
   const loadDebts = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     const { data, error } = await supabase
       .from('debts')
       .select('*')
@@ -1698,88 +1399,6 @@ function DebtsPage({ isMobile }) {
       </Drawer>}
     </div>
   );
-} {
-  const [modal, setModal] = useState(false);
-  const [form, setForm]   = useState({ name:"", type:"owed_to_me", amount:"", due:"", note:"" });
-
-  const save = () => {
-    if (!form.name || !form.amount) return;
-    setData(d => ({ ...d, debts:[{ id:uid(), ...form, amount:+form.amount }, ...d.debts] }));
-    setModal(false);
-    setForm({ name:"", type:"owed_to_me", amount:"", due:"", note:"" });
-  };
-
-  const settle = (id) => setData(d => ({ ...d, debts:d.debts.filter(x=>x.id!==id) }));
-
-  const owedToMe = data.debts.filter(d=>d.type==="owed_to_me");
-  const iOwe     = data.debts.filter(d=>d.type==="i_owe");
-  const netDebt  = owedToMe.reduce((s,d)=>s+d.amount,0) - iOwe.reduce((s,d)=>s+d.amount,0);
-
-  return (
-    <div className="fade">
-      <PageBanner img={HERO_IMGS.sales} title="Debts & Credits" sub="Track who owes you and what you owe">
-        <Btn onClick={() => setModal(true)}>+ Add Entry</Btn>
-      </PageBanner>
-
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)", gap:14, marginBottom:22 }}>
-        <StatCard label="Owed to Me"  value={fmt(owedToMe.reduce((s,d)=>s+d.amount,0))} color={T.emerald} glow/>
-        <StatCard label="I Owe"       value={fmt(iOwe.reduce((s,d)=>s+d.amount,0))}     color={T.rose}/>
-        <StatCard label="Net Position" value={fmt(netDebt)} color={netDebt>=0?T.gold:T.rose} sub={netDebt>=0?"You're ahead":"You owe more"}/>
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:20 }}>
-        {/* Owed to me */}
-        <div>
-          <div style={{ fontSize:12, color:T.emerald, textTransform:"uppercase", letterSpacing:1.2, fontFamily:"'Inter',sans-serif", marginBottom:12, paddingLeft:4 }}>💚 Owed to Me</div>
-          {owedToMe.length===0 && <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:14, padding:20, color:T.fog, fontFamily:"'EB Garamond',serif", textAlign:"center" }}>None</div>}
-          {owedToMe.map(d => (
-            <div key={d.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.emerald}30`, borderRadius:14, padding:18, marginBottom:10 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div>
-                  <div style={{ fontSize:16, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{d.name}</div>
-                  {d.note && <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>{d.note}</div>}
-                  {d.due && <div style={{ fontSize:12, color:T.gold, fontFamily:"'Inter',sans-serif", marginTop:4 }}>Due: {d.due}</div>}
-                </div>
-                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.emerald, fontWeight:700 }}>{fmt(d.amount)}</div>
-              </div>
-              <Btn variant="emerald" sm style={{ marginTop:12 }} onClick={() => settle(d.id)}>Mark Settled ✓</Btn>
-            </div>
-          ))}
-        </div>
-
-        {/* I owe */}
-        <div>
-          <div style={{ fontSize:12, color:T.rose, textTransform:"uppercase", letterSpacing:1.2, fontFamily:"'Inter',sans-serif", marginBottom:12, paddingLeft:4 }}>❤ I Owe</div>
-          {iOwe.length===0 && <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:14, padding:20, color:T.fog, fontFamily:"'EB Garamond',serif", textAlign:"center" }}>None</div>}
-          {iOwe.map(d => (
-            <div key={d.id} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rose}30`, borderRadius:14, padding:18, marginBottom:10 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div>
-                  <div style={{ fontSize:16, color:T.cream, fontFamily:"'EB Garamond',serif", fontWeight:600 }}>{d.name}</div>
-                  {d.note && <div style={{ fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", marginTop:2 }}>{d.note}</div>}
-                  {d.due && <div style={{ fontSize:12, color:T.rose, fontFamily:"'Inter',sans-serif", marginTop:4 }}>Due: {d.due}</div>}
-                </div>
-                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:T.rose, fontWeight:700 }}>{fmt(d.amount)}</div>
-              </div>
-              <Btn variant="danger" sm style={{ marginTop:12 }} onClick={() => settle(d.id)}>Mark Paid ✓</Btn>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {modal && <Drawer title="Add Debt / Credit" subtitle="Record money owed or borrowed" onClose={() => setModal(false)}>
-        <FInput label="Person / Company Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Kofi Mensah"/>
-        <FSelect label="Type" options={[{value:"owed_to_me",label:"💚 Owed to Me"},{value:"i_owe",label:"❤ I Owe"}]} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}/>
-        <FInput label="Amount (GHS)" type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
-        <FInput label="Due Date (optional)" type="date" value={form.due} onChange={e=>setForm(f=>({...f,due:e.target.value}))}/>
-        <FTextarea label="Note (optional)" value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="What is this for?"/>
-        <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn full onClick={save}>Save</Btn>
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancel</Btn>
-        </div>
-      </Drawer>}
-    </div>
-  );
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1802,8 +1421,6 @@ function ReportsPage({ data, isMobile }) {
   return (
     <div className="fade">
       <PageBanner img={HERO_IMGS.dashboard} title="Reports" sub="Your complete financial picture at a glance"/>
-
-      {/* P&L */}
       <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:isMobile?"18px":"26px 30px", marginBottom:20 }}>
         <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:20, fontFamily:"'Inter',sans-serif" }}>Profit & Loss Summary</div>
         <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)", gap:isMobile?16:24 }}>
@@ -1816,7 +1433,6 @@ function ReportsPage({ data, isMobile }) {
         </div>
       </div>
 
-      {/* Metrics */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
         {[{l:"Profit Margin",v:`${margin}%`,n:"of income is profit",c:T.gold},{l:"Expense Ratio",v:`${income>0?((expenses/income)*100).toFixed(1):0}%`,n:"of income spent",c:T.rose},{l:"Revenue Growth",v:"+18%",n:"vs last month",c:T.emerald}].map(({l,v,n,c})=>(
           <div key={l} style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:"18px 16px", textAlign:"center" }}>
@@ -1827,7 +1443,6 @@ function ReportsPage({ data, isMobile }) {
         ))}
       </div>
 
-      {/* Charts */}
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:16 }}>
         <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:16, padding:22 }}>
           <div style={{ fontSize:11, color:T.ash, textTransform:"uppercase", letterSpacing:1, marginBottom:14, fontFamily:"'Inter',sans-serif" }}>This Week — Daily Trend</div>
@@ -1874,9 +1489,8 @@ function ReportsPage({ data, isMobile }) {
    EXPORT PAGE
 ══════════════════════════════════════════════════════ */
 function ExportPage({ data, isMobile }) {
-  const [exported, setExported] = useState(null); // which dataset was just exported
+  const [exported, setExported] = useState(null);
 
-  /* ── helpers ── */
   const triggerDownload = (content, filename, mime) => {
     const blob = new Blob([content], { type: mime });
     const url  = URL.createObjectURL(blob);
@@ -1897,85 +1511,53 @@ function ExportPage({ data, isMobile }) {
   const toJSON = (rows, cols) =>
     JSON.stringify(rows.map(r => Object.fromEntries(cols.map(c => [c.label, c.fn ? c.fn(r) : (r[c.key] ?? "")]))), null, 2);
 
-  /* ── dataset definitions ── */
-  const income   = data.income;
-  const expenses = data.expenses;
-  const sales    = data.sales;
-  const customers= data.customers;
-  const debts    = data.debts;
+  const income    = data.income;
+  const expenses  = data.expenses;
+  const sales     = data.sales;
+  const customers = data.customers;
+  const debts     = data.debts;
 
-  const totalInc  = income.reduce((s,i)=>s+i.amount,0);
-  const totalExp  = expenses.reduce((s,e)=>s+e.amount,0);
-  const totalSales= sales.reduce((s,s2)=>s+s2.qty*s2.price,0);
-  const net       = totalInc - totalExp;
+  const totalInc   = income.reduce((s,i)=>s+i.amount,0);
+  const totalExp   = expenses.reduce((s,e)=>s+e.amount,0);
+  const totalSales = sales.reduce((s,s2)=>s+s2.qty*s2.price,0);
+  const net        = totalInc - totalExp;
 
   const DATASETS = [
     {
       key:"income", label:"Income", icon:"💰", color:T.emerald,
       count:income.length, total:fmt(totalInc),
-      cols:[
-        {label:"Date",     key:"date"},
-        {label:"Source",   key:"source"},
-        {label:"Category", key:"category"},
-        {label:"Amount (GHS)", fn:r=>r.amount.toFixed(2)},
-      ],
+      cols:[{label:"Date",key:"date"},{label:"Source",key:"source"},{label:"Category",key:"category"},{label:"Amount (GHS)",fn:r=>r.amount.toFixed(2)}],
       rows: income,
     },
     {
       key:"expenses", label:"Expenses", icon:"📤", color:T.rose,
       count:expenses.length, total:fmt(totalExp),
-      cols:[
-        {label:"Date",        key:"date"},
-        {label:"Description", key:"description"},
-        {label:"Category",    key:"category"},
-        {label:"Amount (GHS)", fn:r=>r.amount.toFixed(2)},
-      ],
+      cols:[{label:"Date",key:"date"},{label:"Description",key:"description"},{label:"Category",key:"category"},{label:"Amount (GHS)",fn:r=>r.amount.toFixed(2)}],
       rows: expenses,
     },
     {
       key:"sales", label:"Sales", icon:"🛒", color:T.gold,
       count:sales.length, total:fmt(totalSales),
-      cols:[
-        {label:"Date",           key:"date"},
-        {label:"Product",        key:"product"},
-        {label:"Qty",            key:"qty"},
-        {label:"Unit Price (GHS)", fn:r=>r.price.toFixed(2)},
-        {label:"Total (GHS)",    fn:r=>(r.qty*r.price).toFixed(2)},
-        {label:"Customer",       key:"customer"},
-      ],
+      cols:[{label:"Date",key:"date"},{label:"Product",key:"product"},{label:"Qty",key:"qty"},{label:"Unit Price (GHS)",fn:r=>r.price.toFixed(2)},{label:"Total (GHS)",fn:r=>(r.qty*r.price).toFixed(2)},{label:"Customer",key:"customer"}],
       rows: sales,
     },
     {
       key:"customers", label:"Customers", icon:"👥", color:T.sapphire,
       count:customers.length, total:`${customers.length} records`,
-      cols:[
-        {label:"Name",          key:"name"},
-        {label:"Phone",         key:"phone"},
-        {label:"Purchases",     key:"purchases"},
-        {label:"Total Spent (GHS)", fn:r=>r.totalSpent.toFixed(2)},
-        {label:"Last Seen",     key:"lastSeen"},
-        {label:"Note",          key:"note"},
-      ],
+      cols:[{label:"Name",key:"name"},{label:"Phone",key:"phone"},{label:"Purchases",key:"purchases"},{label:"Total Spent (GHS)",fn:r=>(r.totalSpent||0).toFixed(2)},{label:"Last Seen",key:"lastSeen"},{label:"Note",key:"note"}],
       rows: customers,
     },
     {
       key:"debts", label:"Debts & Credits", icon:"⟳", color:T.amethyst,
       count:debts.length, total:`${debts.length} entries`,
-      cols:[
-        {label:"Name",   key:"name"},
-        {label:"Type",   fn:r=>r.type==="owed_to_me"?"Owed to Me":"I Owe"},
-        {label:"Amount (GHS)", fn:r=>r.amount.toFixed(2)},
-        {label:"Due",    key:"due"},
-        {label:"Note",   key:"note"},
-      ],
+      cols:[{label:"Name",key:"name"},{label:"Type",fn:r=>r.type==="owed_to_me"?"Owed to Me":"I Owe"},{label:"Amount (GHS)",fn:r=>r.amount.toFixed(2)},{label:"Due",key:"due"},{label:"Note",key:"note"}],
       rows: debts,
     },
   ];
 
-  /* ── P&L summary text for export ── */
   const buildPL = () => {
     const now = new Date().toLocaleDateString("en-GH", { dateStyle:"long" });
-    const lines = [
+    return [
       "MONEYBOOK GHANA — PROFIT & LOSS SUMMARY",
       `Generated: ${now}`,
       "═══════════════════════════════════════",
@@ -1998,19 +1580,17 @@ function ExportPage({ data, isMobile }) {
       "SALES BREAKDOWN",
       "───────────────────────────────────────",
       ...sales.map(s=>`${s.date}  ${s.product.padEnd(30)}  ${s.qty}x GHS ${s.price.toFixed(2)} = GHS ${(s.qty*s.price).toFixed(2)}`),
-    ];
-    return lines.join("\n");
+    ].join("\n");
   };
 
-  const exportCSV  = (ds) => { triggerDownload(toCSV(ds.rows, ds.cols),  `moneybook-${ds.key}.csv`,  "text/csv"); setExported(ds.key); setTimeout(()=>setExported(null), 2200); };
-  const exportJSON = (ds) => { triggerDownload(toJSON(ds.rows, ds.cols), `moneybook-${ds.key}.json`, "application/json"); setExported(ds.key+"_json"); setTimeout(()=>setExported(null), 2200); };
-  const exportPL   = ()   => { triggerDownload(buildPL(), "moneybook-profit-loss.txt", "text/plain"); setExported("pl"); setTimeout(()=>setExported(null), 2200); };
+  const exportCSV  = (ds) => { triggerDownload(toCSV(ds.rows,ds.cols),  `moneybook-${ds.key}.csv`,  "text/csv"); setExported(ds.key); setTimeout(()=>setExported(null),2200); };
+  const exportJSON = (ds) => { triggerDownload(toJSON(ds.rows,ds.cols), `moneybook-${ds.key}.json`, "application/json"); setExported(ds.key+"_json"); setTimeout(()=>setExported(null),2200); };
+  const exportPL   = ()   => { triggerDownload(buildPL(), "moneybook-profit-loss.txt", "text/plain"); setExported("pl"); setTimeout(()=>setExported(null),2200); };
   const exportAll  = ()   => {
-    DATASETS.forEach((ds,i) => setTimeout(()=>triggerDownload(toCSV(ds.rows,ds.cols), `moneybook-${ds.key}.csv`, "text/csv"), i*300));
-    setTimeout(()=>triggerDownload(buildPL(), "moneybook-profit-loss.txt", "text/plain"), DATASETS.length*300);
-    setExported("all"); setTimeout(()=>setExported(null), 2800);
+    DATASETS.forEach((ds,i) => setTimeout(()=>triggerDownload(toCSV(ds.rows,ds.cols),`moneybook-${ds.key}.csv`,"text/csv"),i*300));
+    setTimeout(()=>triggerDownload(buildPL(),"moneybook-profit-loss.txt","text/plain"),DATASETS.length*300);
+    setExported("all"); setTimeout(()=>setExported(null),2800);
   };
-
 
   return (
     <div className="fade">
@@ -2018,14 +1598,12 @@ function ExportPage({ data, isMobile }) {
         <Btn onClick={exportAll} variant="gold">⇩ Export Everything</Btn>
       </PageBanner>
 
-      {/* Success toast */}
       {exported && (
         <div className="fade" style={{ position:"fixed", bottom:isMobile?90:32, right:24, zIndex:900, background:T.emerald, color:"#06080F", padding:"12px 20px", borderRadius:12, fontFamily:"'EB Garamond',serif", fontSize:15, fontWeight:600, boxShadow:"0 8px 32px rgba(0,0,0,.5)", display:"flex", alignItems:"center", gap:8 }}>
           ✓ Download started!
         </div>
       )}
 
-      {/* Quick P&L export */}
       <div style={{ background:`linear-gradient(135deg,#0D1A10,#081410)`, border:`1px solid ${T.emerald}30`, borderRadius:18, padding:isMobile?"18px 20px":"22px 28px", marginBottom:22 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:14 }}>
           <div>
@@ -2037,15 +1615,8 @@ function ExportPage({ data, isMobile }) {
             <Btn variant="gold" sm onClick={exportAll}>⇩ Export All Files</Btn>
           </div>
         </div>
-
-        {/* Summary numbers */}
         <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)", gap:14, marginTop:18 }}>
-          {[
-            {l:"Total Income",   v:fmt(totalInc),   c:T.emerald},
-            {l:"Total Expenses", v:fmt(totalExp),   c:T.rose},
-            {l:"Sales Revenue",  v:fmt(totalSales), c:T.sapphire},
-            {l:"Net Profit",     v:fmt(net),         c:net>=0?T.gold:T.rose},
-          ].map(({l,v,c})=>(
+          {[{l:"Total Income",v:fmt(totalInc),c:T.emerald},{l:"Total Expenses",v:fmt(totalExp),c:T.rose},{l:"Sales Revenue",v:fmt(totalSales),c:T.sapphire},{l:"Net Profit",v:fmt(net),c:net>=0?T.gold:T.rose}].map(({l,v,c})=>(
             <div key={l} style={{ borderLeft:`3px solid ${c}`, paddingLeft:12 }}>
               <div style={{ fontSize:10, color:T.fog, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", marginBottom:4 }}>{l}</div>
               <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:isMobile?18:22, color:c, fontWeight:700 }}>{v}</div>
@@ -2054,11 +1625,9 @@ function ExportPage({ data, isMobile }) {
         </div>
       </div>
 
-      {/* Dataset cards */}
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:14 }}>
         {DATASETS.map(ds => (
           <div key={ds.key} className="card-lift" style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22 }}>
-            {/* Header */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ width:44, height:44, borderRadius:12, background:`${ds.color}18`, border:`1px solid ${ds.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{ds.icon}</div>
@@ -2069,45 +1638,30 @@ function ExportPage({ data, isMobile }) {
               </div>
               <Badge color={ds.color}>{ds.count}</Badge>
             </div>
-
-            {/* Column preview */}
             <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
               {ds.cols.map(c => (
                 <span key={c.label} style={{ padding:"3px 9px", borderRadius:20, background:`${T.rimHi}`, color:T.ash, fontSize:11, fontFamily:"'Inter',sans-serif" }}>{c.label}</span>
               ))}
             </div>
-
-            {/* Data preview snippet */}
-            {ds.rows.length > 0 && (
-              <div style={{ background:"#090D14", borderRadius:10, padding:"10px 12px", marginBottom:16, fontFamily:"monospace", fontSize:11, color:T.fog, maxHeight:72, overflow:"hidden", position:"relative" }}>
+            {ds.rows.length > 0 ? (
+              <div style={{ background:"#090D14", borderRadius:10, padding:"10px 12px", marginBottom:16, fontFamily:"monospace", fontSize:11, color:T.fog, maxHeight:72, overflow:"hidden" }}>
                 <div style={{ color:T.ash }}>{ds.cols.map(c=>c.label).join(", ")}</div>
                 {ds.rows.slice(0,2).map((r,i)=>(
-                  <div key={i} style={{ color:T.fog, marginTop:3 }}>
-                    {ds.cols.map(c=>(c.fn?c.fn(r):(r[c.key]??""))).join(", ")}
-                  </div>
+                  <div key={i} style={{ color:T.fog, marginTop:3 }}>{ds.cols.map(c=>(c.fn?c.fn(r):(r[c.key]??""))).join(", ")}</div>
                 ))}
                 {ds.rows.length>2 && <div style={{ color:T.rimHi, marginTop:3 }}>... {ds.rows.length-2} more rows</div>}
               </div>
-            )}
-
-            {ds.rows.length === 0 && (
+            ) : (
               <div style={{ padding:"14px", background:"#090D14", borderRadius:10, marginBottom:16, color:T.fog, fontSize:13, fontFamily:"'EB Garamond',serif", textAlign:"center" }}>No data yet</div>
             )}
-
-            {/* Action buttons */}
             <div style={{ display:"flex", gap:8 }}>
-              <Btn variant="gold" sm full onClick={()=>exportCSV(ds)} disabled={ds.rows.length===0}>
-                ⇩ CSV
-              </Btn>
-              <Btn variant="ghost" sm full onClick={()=>exportJSON(ds)} disabled={ds.rows.length===0}>
-                ⇩ JSON
-              </Btn>
+              <Btn variant="gold" sm full onClick={()=>exportCSV(ds)} disabled={ds.rows.length===0}>⇩ CSV</Btn>
+              <Btn variant="ghost" sm full onClick={()=>exportJSON(ds)} disabled={ds.rows.length===0}>⇩ JSON</Btn>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Format guide */}
       <div style={{ background:T.card, border:`1px solid ${T.rim}`, borderRadius:18, padding:22, marginTop:20 }}>
         <div style={{ fontSize:12, color:T.ash, textTransform:"uppercase", letterSpacing:1, fontFamily:"'Inter',sans-serif", marginBottom:16 }}>About Export Formats</div>
         <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)", gap:16 }}>
@@ -2134,68 +1688,63 @@ function ExportPage({ data, isMobile }) {
    APP ROOT
 ══════════════════════════════════════════════════════ */
 export default function App() {
-  const [user,      setUser]      = useState(null);
+  const [user,     setUser]     = useState(null);
+  const [active,   setActive]   = useState("dashboard");
+  const [data,     setData]     = useState(SEED);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const w   = useW();
+  const isM = w < 768;
+
   useEffect(() => {
-  // Check if user is already logged in
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      setUser({
-        name: session.user.user_metadata?.name || session.user.email,
-        business: session.user.user_metadata?.business || "My Business",
-        avatar: (session.user.user_metadata?.name || session.user.email)[0].toUpperCase()
-      });
-    }
-  });
-
-  // Listen for auth changes
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      setUser({
-        name: session.user.user_metadata?.name || session.user.email,
-        business: session.user.user_metadata?.business || "My Business",
-        avatar: (session.user.user_metadata?.name || session.user.email)[0].toUpperCase()
-      });
-    } else {
-      setUser(null);
-    }
-  });
-
-  return () => subscription.unsubscribe();
-}, []);
-  const [active,    setActive]    = useState("dashboard");
-  const [data,      setData]      = useState(SEED);
-  const [menuOpen,  setMenuOpen]  = useState(false);
-  const w    = useW();
-  const isM  = w < 768;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          name:     session.user.user_metadata?.name     || session.user.email,
+          business: session.user.user_metadata?.business || "My Business",
+          avatar:   (session.user.user_metadata?.name    || session.user.email)[0].toUpperCase()
+        });
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          name:     session.user.user_metadata?.name     || session.user.email,
+          business: session.user.user_metadata?.business || "My Business",
+          avatar:   (session.user.user_metadata?.name    || session.user.email)[0].toUpperCase()
+        });
+      } else {
+        setUser(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   if (!user) return (
     <><style>{CSS}</style><AuthPage onAuth={u => { setUser(u); setData({ ...SEED, user:u }); }}/></>
   );
 
   const pp = { data, setData, isMobile:isM };
-const pages = {
-  dashboard: <Dashboard  {...pp}/>,
-  income:    <IncomePage isMobile={isM}/>,
-  expenses:  <ExpensesPage isMobile={isM}/>,
-  sales:     <SalesPage  isMobile={isM}/>,
-  budget:    <BudgetPage {...pp}/>,
-  customers: <CustomersPage isMobile={isM}/>,
-  debts:     <DebtsPage  isMobile={isM}/>,
-  reports:   <ReportsPage {...pp}/>,
-  export:    <ExportPage  {...pp}/>,
-};
+  const pages = {
+    dashboard: <Dashboard    {...pp}/>,
+    income:    <IncomePage    isMobile={isM}/>,
+    expenses:  <ExpensesPage  isMobile={isM}/>,
+    sales:     <SalesPage     isMobile={isM}/>,
+    budget:    <BudgetPage    {...pp}/>,
+    customers: <CustomersPage isMobile={isM}/>,
+    debts:     <DebtsPage     isMobile={isM}/>,
+    reports:   <ReportsPage   {...pp}/>,
+    export:    <ExportPage    {...pp}/>,
+  };
 
   return (
     <>
       <style>{CSS}</style>
       <div style={{ fontFamily:"'EB Garamond',serif", background:T.bg, minHeight:"100vh", color:T.cream, display:"flex", flexDirection:isM?"column":"row" }}>
         {!isM && <Sidebar active={active} setActive={setActive} user={user} onLogout={async () => { await supabase.auth.signOut(); setUser(null); }}/>}
-        {isM  && <MobileHeader active={active} user={user} menuOpen={menuOpen} setMenuOpen={setMenuOpen} setActive={setActive} onLogout={() => setUser(null)}/>}
-
-        <main style={{ marginLeft:isM?0:226, flex:1, padding:isM?"18px 16px 90px":"34px 44px", minHeight:"100vh", width:isM?"100%":undefined, maxWidth:isM?"100%":undefined }}>
+        {isM  && <MobileHeader active={active} user={user} menuOpen={menuOpen} setMenuOpen={setMenuOpen} setActive={setActive} onLogout={async () => { await supabase.auth.signOut(); setUser(null); }}/>}
+        <main style={{ marginLeft:isM?0:226, flex:1, padding:isM?"18px 16px 90px":"34px 44px", minHeight:"100vh" }}>
           {pages[active]}
         </main>
-
         {isM && <MobileNav active={active} setActive={setActive}/>}
       </div>
     </>
