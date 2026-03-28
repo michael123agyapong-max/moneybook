@@ -6,15 +6,23 @@ import {
 import { supabase } from "./supabase";
 
 /* ══════════════════════════════════════════════════════
-   DESIGN TOKENS
+   DESIGN TOKENS  — theme-aware (dark + light)
 ══════════════════════════════════════════════════════ */
-const T = {
+const DARK = {
   bg:"#06080F", surface:"#0C1018", card:"#111820", cardHi:"#16202C",
   rim:"#1A2535", rimHi:"#243348", gold:"#D4A853", goldLt:"#F2C96A",
   goldDk:"#9A7530", emerald:"#1DB87A", rose:"#E8485A", sapphire:"#4A8CF5",
   amethyst:"#9B72F5", cream:"#F0E8D8", ash:"#8FA3BC", fog:"#4A607A", night:"#1A2535",
 };
-const SERIES_COLORS = [T.gold,T.emerald,T.sapphire,T.rose,T.amethyst,"#F97316","#06B6D4"];
+const LIGHT = {
+  bg:"#F5F4F0", surface:"#FFFFFF", card:"#FAFAF8", cardHi:"#F0EFE9",
+  rim:"#E2DDD6", rimHi:"#D0C9C0", gold:"#B8891F", goldLt:"#D4A853",
+  goldDk:"#7A5C0E", emerald:"#0E9060", rose:"#C93040", sapphire:"#2563EB",
+  amethyst:"#7C3AED", cream:"#1A1208", ash:"#5A5040", fog:"#9B9080", night:"#E8E4DE",
+};
+// T is mutated by the theme toggle — all components read live values
+const T = { ...DARK };
+const SERIES_COLORS = ["#D4A853","#1DB87A","#4A8CF5","#E8485A","#9B72F5","#F97316","#06B6D4"];
 const CATEGORY_ICONS = {
   Food:"🍛",Transport:"🚕",Business:"💼",Bills:"⚡",Shopping:"🛍",
   Healthcare:"💊",Entertainment:"🎬",Education:"📚",Other:"📦",
@@ -48,6 +56,57 @@ const TIPS = [
 /* ── SEED ── */
 const SEED = { budgets: [] };
 
+/* ── Exchange rate helpers ── */
+const RATE_CACHE_KEY = "mb_rates_v1";
+async function fetchRates() {
+  const cached = sessionStorage.getItem(RATE_CACHE_KEY);
+  if (cached) return JSON.parse(cached);
+  try {
+    const res = await fetch("https://open.er-api.com/v6/latest/GHS");
+    const json = await res.json();
+    if (json.result === "success") {
+      const rates = {
+        USD: +(1 / json.rates.USD).toFixed(4),
+        GBP: +(1 / json.rates.GBP).toFixed(4),
+        EUR: +(1 / json.rates.EUR).toFixed(4),
+        updated: new Date().toLocaleTimeString(),
+      };
+      sessionStorage.setItem(RATE_CACHE_KEY, JSON.stringify(rates));
+      return rates;
+    }
+  } catch(e) {}
+  return null;
+}
+
+/* ── Business score helpers ── */
+function calcScore(income, expenses, budgets, debts) {
+  if (!income.length && !expenses.length) return null;
+  let score = 50;
+  const totalInc = income.reduce((s,i)=>s+(+i.amount),0);
+  const totalExp = expenses.reduce((s,e)=>s+(+e.amount),0);
+  if (totalInc > 0) {
+    const margin = (totalInc - totalExp) / totalInc;
+    score += Math.min(25, Math.round(margin * 50));
+  }
+  const thisMonth = todayS().slice(0,7);
+  const activeThisMonth = income.some(i=>i.date?.startsWith(thisMonth)) || expenses.some(e=>e.date?.startsWith(thisMonth));
+  if (activeThisMonth) score += 10;
+  if (budgets.length > 0) {
+    const b = budgets[0];
+    const spent = b.categories.reduce((s,c)=>s+c.spent,0);
+    if (spent <= b.totalCash) score += 10;
+  }
+  score -= Math.min(15, debts.length * 5);
+  return Math.max(0, Math.min(100, score));
+}
+function scoreLabel(s) {
+  if (s === null) return { label:"Not enough data", color:"#8FA3BC" };
+  if (s >= 80) return { label:"Excellent ✦", color:"#1DB87A" };
+  if (s >= 60) return { label:"Good", color:"#D4A853" };
+  if (s >= 40) return { label:"Fair", color:"#F97316" };
+  return { label:"Needs attention", color:"#E8485A" };
+}
+
 /* ══════════════════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════════════════ */
@@ -73,7 +132,7 @@ const useW = () => {
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=EB+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-  html,body{background:#06080F;font-family:'EB Garamond',serif;}
+  html,body{background:var(--mb-bg,#06080F);font-family:'EB Garamond',serif;transition:background .3s;}
   ::-webkit-scrollbar{width:4px;}
   ::-webkit-scrollbar-track{background:#06080F;}
   ::-webkit-scrollbar-thumb{background:#1A2535;border-radius:4px;}
@@ -372,11 +431,12 @@ const NAV=[
   {id:"budget",   icon:"◎", label:"Budget"},
   {id:"customers",icon:"◉", label:"Customers"},
   {id:"debts",    icon:"⟳", label:"Debts"},
+  {id:"goals",    icon:"🎯", label:"Goals"},
   {id:"reports",  icon:"≡", label:"Reports"},
   {id:"export",   icon:"⇩", label:"Export"},
 ];
 
-function Sidebar({active,setActive,user,onLogout}){
+function Sidebar({active,setActive,user,onLogout,isDark,onToggleTheme}){
   return(
     <aside style={{width:226,minHeight:"100vh",background:T.surface,borderRight:`1px solid ${T.rim}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,zIndex:100}}>
       <div style={{padding:"22px 20px 18px",borderBottom:`1px solid ${T.rim}`}}>
@@ -405,6 +465,11 @@ function Sidebar({active,setActive,user,onLogout}){
             <div style={{fontSize:14,color:T.cream,fontWeight:600,...S.serif,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</div>
             <div style={{fontSize:11,color:T.fog,...S.mono,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.business}</div>
           </div>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:8}}>
+          <button onClick={onToggleTheme} style={{flex:1,padding:"7px",background:`${T.gold}15`,border:`1px solid ${T.gold}30`,borderRadius:8,color:T.gold,fontSize:12,cursor:"pointer",...S.mono,textAlign:"center"}}>
+            {isDark?"☀ Light":"◑ Dark"}
+          </button>
         </div>
         <button onClick={onLogout} style={{width:"100%",padding:"8px",background:"transparent",border:`1px solid ${T.rim}`,borderRadius:8,color:T.fog,fontSize:13,cursor:"pointer",...S.mono}}>Sign Out</button>
       </div>
@@ -481,7 +546,13 @@ function Dashboard({isMobile,budgets}){
   const [income,  setIncome]  = useState([]);
   const [expenses,setExpenses]= useState([]);
   const [debts,   setDebts]   = useState([]);
+  const [rates,   setRates]   = useState(null);
+  const [rateLoading, setRateLoading] = useState(true);
   const tipIndex = useState(()=>Math.floor(Math.random()*TIPS.length))[0];
+
+  useEffect(()=>{
+    fetchRates().then(r=>{ setRates(r); setRateLoading(false); });
+  },[]);
 
   useEffect(()=>{
     const load=async()=>{
@@ -638,6 +709,87 @@ function Dashboard({isMobile,budgets}){
             <div style={{fontSize:13,color:T.ash,...S.serif,lineHeight:1.6}}>{TIPS[tipIndex]}</div>
           </div>
         </div>
+      </div>
+
+      {/* Exchange Rates + Business Score row */}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16,marginTop:16}}>
+        {/* Exchange Rates */}
+        <div style={{...S.card,padding:22}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontSize:11,color:T.ash,textTransform:"uppercase",letterSpacing:1,...S.mono}}>Live Exchange Rates</div>
+            {rates&&<div style={{fontSize:10,color:T.fog,...S.mono}}>Updated {rates.updated}</div>}
+          </div>
+          {rateLoading&&<div style={{color:T.fog,fontSize:13,...S.serif}}>Fetching rates...</div>}
+          {!rateLoading&&!rates&&<div style={{color:T.fog,fontSize:13,...S.serif}}>Could not load rates. Check your connection.</div>}
+          {rates&&(
+            <>
+              {[{flag:"🇺🇸",code:"USD",label:"US Dollar"},{flag:"🇬🇧",code:"GBP",label:"British Pound"},{flag:"🇪🇺",code:"EUR",label:"Euro"}].map(({flag,code,label})=>(
+                <div key={code} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${T.rim}`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:20}}>{flag}</span>
+                    <div>
+                      <div style={{fontSize:14,color:T.cream,...S.serif,fontWeight:600}}>{code}</div>
+                      <div style={{fontSize:11,color:T.fog,...S.mono}}>{label}</div>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{...S.title,fontSize:18,color:T.gold,fontWeight:700}}>GHS {rates[code]?.toFixed(2)}</div>
+                    <div style={{fontSize:10,color:T.fog,...S.mono}}>per 1 {code}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop:12,padding:"10px 12px",background:`${T.sapphire}10`,border:`1px solid ${T.sapphire}25`,borderRadius:10}}>
+                <div style={{fontSize:12,color:T.ash,...S.serif}}>
+                  Your net balance of <span style={{color:T.gold,fontWeight:600}}>{fmt(net)}</span> ≈{" "}
+                  <span style={{color:T.sapphire,fontWeight:600}}>${(net/rates.USD).toFixed(2)} USD</span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Business Score */}
+        {(()=>{
+          const score = calcScore(income, expenses, budgets||[], debts);
+          const {label,color} = scoreLabel(score);
+          const pct = score ?? 0;
+          return(
+            <div style={{...S.card,padding:22}}>
+              <div style={{fontSize:11,color:T.ash,textTransform:"uppercase",letterSpacing:1,marginBottom:14,...S.mono}}>Business Health Score</div>
+              <div style={{display:"flex",alignItems:"center",gap:20,marginBottom:16}}>
+                <div style={{position:"relative",width:80,height:80,flexShrink:0}}>
+                  <svg width="80" height="80" style={{transform:"rotate(-90deg)"}}>
+                    <circle cx="40" cy="40" r="32" fill="none" stroke={T.rim} strokeWidth="8"/>
+                    <circle cx="40" cy="40" r="32" fill="none" stroke={color} strokeWidth="8"
+                      strokeDasharray={`${(pct/100)*201} 201`} strokeLinecap="round"/>
+                  </svg>
+                  <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",...S.title,fontSize:20,fontWeight:700,color}}>
+                    {score!==null?score:"—"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{...S.title,fontSize:22,color,fontWeight:700,marginBottom:4}}>{label}</div>
+                  <div style={{fontSize:12,color:T.fog,...S.mono,lineHeight:1.6}}>
+                    Based on profit margin,<br/>budget adherence & consistency
+                  </div>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[
+                  {l:"Profit margin",v:totalInc>0?`${(((totalInc-totalExp)/totalInc)*100).toFixed(1)}%`:"—",c:T.emerald},
+                  {l:"Debt entries",v:`${debts.length}`,c:debts.length>2?T.rose:T.ash},
+                  {l:"Budget active",v:budgets?.length>0?"Yes":"No",c:budgets?.length>0?T.emerald:T.fog},
+                  {l:"Active this month",v:income.some(i=>i.date?.startsWith(todayS().slice(0,7)))||expenses.some(e=>e.date?.startsWith(todayS().slice(0,7)))?"Yes":"No",c:T.sapphire},
+                ].map(({l,v,c})=>(
+                  <div key={l} style={{background:`${T.rim}50`,borderRadius:8,padding:"8px 10px"}}>
+                    <div style={{fontSize:10,color:T.fog,...S.mono,marginBottom:3}}>{l}</div>
+                    <div style={{fontSize:14,color:c,fontWeight:600,...S.serif}}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
@@ -934,7 +1086,7 @@ function SalesPage({isMobile}){
   const [search,   setSearch]  =useState("");
   const [dateFrom, setDateFrom]=useState("");
   const [dateTo,   setDateTo]  =useState("");
-  const blank={product:"",qty:1,price:"",customer:"",date:todayS()};
+  const blank={product:"",qty:1,price:"",cost:"",customer:"",date:todayS()};
   const [form,setForm]=useState(blank);
 
   const load=useCallback(async()=>{
@@ -948,7 +1100,7 @@ function SalesPage({isMobile}){
   useEffect(()=>{load();},[load]);
 
   const openAdd =()=>{setEditing(null);setForm(blank);setModal(true);};
-  const openEdit=item=>{setEditing(item);setForm({product:item.product,qty:item.qty,price:item.price,customer:item.customer||"",date:item.date});setModal(true);};
+  const openEdit=item=>{setEditing(item);setForm({product:item.product,qty:item.qty,price:item.price,cost:item.cost||"",customer:item.customer||"",date:item.date});setModal(true);};
 
   const save=async()=>{
     if(!form.product||!form.price) return;
@@ -957,9 +1109,9 @@ function SalesPage({isMobile}){
     if(!user){setSaving(false);return;}
     let error;
     if(editing){
-      ({error}=await supabase.from('sales').update({product:form.product,qty:+form.qty,price:+form.price,customer:form.customer,date:form.date}).eq('id',editing.id));
+      ({error}=await supabase.from('sales').update({product:form.product,qty:+form.qty,price:+form.price,cost:+form.cost||0,customer:form.customer,date:form.date}).eq('id',editing.id));
     } else {
-      ({error}=await supabase.from('sales').insert({user_id:user.id,product:form.product,qty:+form.qty,price:+form.price,customer:form.customer,date:form.date}));
+      ({error}=await supabase.from('sales').insert({user_id:user.id,product:form.product,qty:+form.qty,price:+form.price,cost:+form.cost||0,customer:form.customer,date:form.date}));
     }
     setSaving(false);
     if(error){setToast({msg:"❌ Failed to save: "+error.message,color:T.rose});return;}
@@ -1011,17 +1163,20 @@ function SalesPage({isMobile}){
                   <div style={{fontSize:16,color:T.cream,...S.serif,fontWeight:600}}>{item.product}</div>
                   <div style={{fontSize:12,color:T.fog,...S.mono,marginTop:2}}>Qty: {item.qty} × {fmt(item.price)} · {item.date}</div>
                   {item.customer&&<div style={{fontSize:12,color:T.sapphire,...S.mono,marginTop:1}}>👤 {item.customer}</div>}
+                  {item.cost>0&&<div style={{fontSize:11,color:T.emerald,...S.mono,marginTop:2}}>Margin: {(((+item.price - +item.cost)/+item.price)*100).toFixed(1)}% · Profit/unit: {fmt(+item.price - +item.cost)}</div>}
                 </div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
                 <div style={{...S.title,fontSize:isMobile?18:22,fontWeight:700,color:T.gold}}>{fmt(+item.qty * +item.price)}</div>
                 <button onClick={()=>openEdit(item)} style={S.editBtn}>Edit</button>
                 <button onClick={()=>setDelTarget(item)} style={S.delBtn}>Delete</button>
+                <button onClick={()=>setReceipt(item)} style={{background:`${T.gold}18`,border:`1px solid ${T.gold}40`,borderRadius:6,padding:"4px 10px",color:T.gold,fontSize:12,cursor:"pointer",...S.mono}}>Receipt</button>
               </div>
             </div>
           ))}
         </div>
       )}
+      {receipt&&<ReceiptModal item={receipt} businessName={null} onClose={()=>setReceipt(null)}/>}
       {modal&&<Drawer title={editing?"Edit Sale":"Record Sale"} onClose={()=>{setModal(false);setEditing(null);}}>
         <FInput label="Product / Service" value={form.product} onChange={e=>setForm(f=>({...f,product:e.target.value}))} placeholder="e.g. Waakye large, n8n setup…"/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1029,6 +1184,13 @@ function SalesPage({isMobile}){
           <FInput label="Unit Price (GHS)" type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
         </div>
         {form.qty&&form.price&&<div style={{background:`${T.gold}12`,border:`1px solid ${T.gold}35`,borderRadius:10,padding:"10px 14px",marginBottom:14,...S.title,fontSize:18,color:T.gold,fontWeight:700}}>Total: {fmt(+form.qty * +form.price)}</div>}
+        <FInput label="Cost Price per Unit (GHS) — optional" type="number" value={form.cost} onChange={e=>setForm(f=>({...f,cost:e.target.value}))} placeholder="What did it cost you to make/buy this?"/>
+        {form.cost&&form.price&&+form.price>0&&(
+          <div style={{background:`${T.emerald}12`,border:`1px solid ${T.emerald}30`,borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:13,color:T.emerald,...S.mono}}>
+            Margin: {(((+form.price - +form.cost) / +form.price)*100).toFixed(1)}%
+            &nbsp;·&nbsp; Profit per unit: {fmt(+form.price - +form.cost)}
+          </div>
+        )}
         <FInput label="Customer (optional)" value={form.customer} onChange={e=>setForm(f=>({...f,customer:e.target.value}))} placeholder="Customer name"/>
         <FInput label="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
         <div style={{display:"flex",gap:10,marginTop:8}}>
@@ -1415,6 +1577,257 @@ function DebtsPage({isMobile}){
 }
 
 /* ══════════════════════════════════════════════════════
+   GOALS PAGE — Supabase connected
+   SQL to run in Supabase SQL Editor:
+   create table goals (
+     id uuid primary key default gen_random_uuid(),
+     user_id uuid references auth.users not null,
+     title text not null,
+     target numeric not null,
+     saved numeric default 0,
+     deadline text,
+     icon text default '🎯',
+     created_at timestamptz default now()
+   );
+   create policy "goals_policy" on goals for all
+     using (auth.uid()=user_id) with check (auth.uid()=user_id);
+   alter table goals enable row level security;
+══════════════════════════════════════════════════════ */
+function GoalsPage({isMobile}){
+  const [goals,   setGoals]   = useState([]);
+  const [modal,   setModal]   = useState(false);
+  const [addModal,setAddModal]= useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
+  const [toast,   setToast]   = useState(null);
+  const [delTarget,setDelTarget] = useState(null);
+  const [addAmt,  setAddAmt]  = useState("");
+  const [activeGoal,setActiveGoal] = useState(null);
+  const blank = {title:"",target:"",saved:"",deadline:"",icon:"🎯"};
+  const [form,setForm] = useState(blank);
+  const icons = ["🎯","🏠","🚗","✈️","📱","💼","🎓","💍","🏋","🌍","🛒","💰"];
+
+  const load = useCallback(async()=>{
+    setLoading(true);
+    const {data:{user}} = await supabase.auth.getUser();
+    if(!user){setLoading(false);return;}
+    const {data,error} = await supabase.from('goals').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
+    if(!error) setGoals(data||[]);
+    setLoading(false);
+  },[]);
+  useEffect(()=>{load();},[load]);
+
+  const save = async()=>{
+    if(!form.title||!form.target) return;
+    setSaving(true);
+    const {data:{user}} = await supabase.auth.getUser();
+    if(!user){setSaving(false);return;}
+    const {error} = await supabase.from('goals').insert({
+      user_id:user.id, title:form.title, target:+form.target,
+      saved:+form.saved||0, deadline:form.deadline||null, icon:form.icon
+    });
+    setSaving(false);
+    if(error){setToast({msg:"❌ "+error.message,color:T.rose});return;}
+    setToast({msg:"✓ Goal created",color:T.emerald});
+    setModal(false);setForm(blank);load();
+  };
+
+  const addToGoal = async()=>{
+    if(!addAmt||!activeGoal) return;
+    const newSaved = Math.min(+activeGoal.saved + +addAmt, +activeGoal.target);
+    const {error} = await supabase.from('goals').update({saved:newSaved}).eq('id',activeGoal.id);
+    if(error){setToast({msg:"❌ "+error.message,color:T.rose});return;}
+    setToast({msg:"✓ Progress updated",color:T.emerald});
+    setAddModal(false);setAddAmt("");setActiveGoal(null);load();
+  };
+
+  const del = async()=>{
+    if(!delTarget) return;
+    await supabase.from('goals').delete().eq('id',delTarget.id);
+    setToast({msg:"✓ Goal deleted",color:T.emerald});
+    setDelTarget(null);load();
+  };
+
+  const totalTarget = goals.reduce((s,g)=>s+(+g.target),0);
+  const totalSaved  = goals.reduce((s,g)=>s+(+g.saved),0);
+
+  return(
+    <div className="fade">
+      {toast&&<Toast msg={toast.msg} color={toast.color} onDone={()=>setToast(null)}/>}
+      <PageBanner img={HERO_IMGS.budget} title="Goals" sub="Set targets, track progress, stay motivated">
+        <Btn onClick={()=>setModal(true)}>+ New Goal</Btn>
+      </PageBanner>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(3,1fr)",gap:14,marginBottom:22}}>
+        <StatCard label="Active Goals"  value={goals.length}      color={T.sapphire}/>
+        <StatCard label="Total Target"  value={fmt(totalTarget)}  color={T.gold} glow/>
+        <StatCard label="Total Saved"   value={fmt(totalSaved)}   color={T.emerald} sub={totalTarget>0?`${((totalSaved/totalTarget)*100).toFixed(0)}% of all targets`:""}/>
+      </div>
+      {loading?(
+        <div style={{padding:40,textAlign:"center",color:T.fog,...S.serif,fontSize:16}}>Loading goals...</div>
+      ):(
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16}}>
+          {goals.length===0&&(
+            <div style={{...S.card,padding:48,textAlign:"center",gridColumn:"1/-1",borderRadius:18}}>
+              <div style={{fontSize:48,marginBottom:12}}>🎯</div>
+              <div style={{...S.title,fontSize:22,color:T.cream,marginBottom:8}}>No goals yet</div>
+              <div style={{fontSize:14,color:T.fog,...S.serif,marginBottom:20}}>Set a savings goal — a container, a laptop, school fees. Track every cedi you save toward it.</div>
+              <Btn onClick={()=>setModal(true)}>+ Create First Goal</Btn>
+            </div>
+          )}
+          {goals.map(g=>{
+            const pct = +g.target>0 ? Math.min(100,(+g.saved/+g.target)*100) : 0;
+            const done = pct>=100;
+            const remaining = +g.target - +g.saved;
+            const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline)-new Date())/(1000*60*60*24)) : null;
+            return(
+              <div key={g.id} className="card-lift" style={{...S.card,borderRadius:18,padding:22,border:`1px solid ${done?T.emerald+"60":T.rim}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:46,height:46,borderRadius:12,background:`${done?T.emerald:T.gold}20`,border:`1px solid ${done?T.emerald:T.gold}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>
+                      {done?"✅":g.icon}
+                    </div>
+                    <div>
+                      <div style={{fontSize:16,color:T.cream,...S.serif,fontWeight:600}}>{g.title}</div>
+                      {g.deadline&&<div style={{fontSize:11,color:daysLeft<0?T.rose:daysLeft<14?T.gold:T.fog,...S.mono,marginTop:2}}>
+                        {daysLeft<0?"Deadline passed":`${daysLeft} days left`} · {g.deadline}
+                      </div>}
+                    </div>
+                  </div>
+                  <button onClick={()=>setDelTarget(g)} style={{...S.delBtn,padding:"3px 8px"}}>✕</button>
+                </div>
+                {/* Progress bar */}
+                <div style={{height:10,background:T.night,borderRadius:5,marginBottom:10,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,${done?T.emerald:T.gold}80,${done?T.emerald:T.gold})`,borderRadius:5,transition:"width .8s ease"}}/>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:13,...S.mono,marginBottom:14}}>
+                  <span style={{color:T.fog}}>Saved <span style={{color:T.emerald,fontWeight:600}}>{fmt(g.saved)}</span></span>
+                  <span style={{color:T.fog}}>Target <span style={{color:T.gold,fontWeight:600}}>{fmt(g.target)}</span></span>
+                </div>
+                {!done&&<div style={{fontSize:14,color:T.ash,...S.serif,marginBottom:14}}>
+                  <span style={{color:T.cream,fontWeight:600}}>{fmt(remaining)}</span> still needed · <span style={{color:T.gold,fontWeight:600}}>{pct.toFixed(0)}%</span> complete
+                </div>}
+                {done&&<div style={{fontSize:14,color:T.emerald,...S.serif,fontWeight:600,marginBottom:14}}>🎉 Goal reached!</div>}
+                {!done&&<Btn variant="outline" sm full onClick={()=>{setActiveGoal(g);setAddAmt("");setAddModal(true);}}>+ Add Savings</Btn>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* New Goal Modal */}
+      {modal&&<Drawer title="New Goal" subtitle="Set a savings target" onClose={()=>{setModal(false);setForm(blank);}}>
+        <FInput label="Goal Title" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Buy a laptop, Save for container…"/>
+        <FInput label="Target Amount (GHS)" type="number" value={form.target} onChange={e=>setForm(f=>({...f,target:e.target.value}))} placeholder="e.g. 5000"/>
+        <FInput label="Already Saved (GHS) — optional" type="number" value={form.saved} onChange={e=>setForm(f=>({...f,saved:e.target.value}))} placeholder="0"/>
+        <FInput label="Deadline — optional" type="date" value={form.deadline} onChange={e=>setForm(f=>({...f,deadline:e.target.value}))}/>
+        <Field label="Icon">
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
+            {icons.map(ic=><button key={ic} onClick={()=>setForm(f=>({...f,icon:ic}))} style={{width:38,height:38,borderRadius:8,border:`1px solid ${form.icon===ic?T.gold:T.rim}`,background:form.icon===ic?`${T.gold}20`:T.card,fontSize:20,cursor:"pointer"}}>{ic}</button>)}
+          </div>
+        </Field>
+        <div style={{display:"flex",gap:10,marginTop:8}}>
+          <Btn full onClick={save} loading={saving}>Create Goal</Btn>
+          <Btn variant="ghost" onClick={()=>{setModal(false);setForm(blank);}}>Cancel</Btn>
+        </div>
+      </Drawer>}
+
+      {/* Add Savings Modal */}
+      {addModal&&activeGoal&&<Drawer title={`Add to: ${activeGoal.title}`} subtitle={`Current: ${fmt(activeGoal.saved)} / ${fmt(activeGoal.target)}`} onClose={()=>{setAddModal(false);setActiveGoal(null);}}>
+        <FInput label="Amount to Add (GHS)" type="number" value={addAmt} onChange={e=>setAddAmt(e.target.value)} placeholder="e.g. 200"/>
+        {addAmt&&<div style={{background:`${T.emerald}12`,border:`1px solid ${T.emerald}30`,borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:13,color:T.emerald,...S.mono}}>
+          New total: {fmt(Math.min(+activeGoal.saved + +addAmt, +activeGoal.target))} / {fmt(activeGoal.target)}
+          &nbsp;({Math.min(100,((+activeGoal.saved + +addAmt)/+activeGoal.target)*100).toFixed(0)}%)
+        </div>}
+        <div style={{display:"flex",gap:10,marginTop:8}}>
+          <Btn full onClick={addToGoal}>Save</Btn>
+          <Btn variant="ghost" onClick={()=>{setAddModal(false);setActiveGoal(null);}}>Cancel</Btn>
+        </div>
+      </Drawer>}
+
+      {delTarget&&<DeleteConfirm what={`goal "${delTarget.title}"`} onConfirm={del} onCancel={()=>setDelTarget(null)}/>}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   RECEIPT GENERATOR — WhatsApp-style shareable receipt
+══════════════════════════════════════════════════════ */
+function ReceiptModal({item,businessName,onClose}){
+  const [downloading,setDownloading]=useState(false);
+
+  const downloadReceipt = async()=>{
+    setDownloading(true);
+    try{
+      // Load html2canvas from CDN
+      if(!window.html2canvas){
+        await new Promise((res,rej)=>{
+          const s=document.createElement('script');
+          s.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+          s.onload=res; s.onerror=rej;
+          document.head.appendChild(s);
+        });
+      }
+      const el = document.getElementById('mb-receipt');
+      const canvas = await window.html2canvas(el,{scale:2,backgroundColor:"#111820",useCORS:true});
+      const link = document.createElement('a');
+      link.download = `receipt-${item.product||item.source||"entry"}-${item.date}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      setDownloading(false);
+    } catch(e){
+      setDownloading(false);
+    }
+  };
+
+  const total = item.qty&&item.price ? +item.qty * +item.price : +item.amount||0;
+
+  return(
+    <Drawer title="Receipt" subtitle="Download and share on WhatsApp" onClose={onClose} wide>
+      {/* The receipt card that gets screenshotted */}
+      <div id="mb-receipt" style={{background:"#111820",border:"1px solid #1A2535",borderRadius:16,padding:28,marginBottom:20,fontFamily:"'EB Garamond',serif"}}>
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,paddingBottom:16,borderBottom:"1px solid #1A2535"}}>
+          <div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,color:"#F0E8D8",fontWeight:700}}>{businessName||"My Business"}</div>
+            <div style={{fontSize:12,color:"#4A607A",marginTop:2,fontFamily:"'Inter',sans-serif"}}>Official Receipt</div>
+          </div>
+          <div style={{width:44,height:44,borderRadius:10,background:"linear-gradient(135deg,#D4A853,#9A7530)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:800,color:"#06080F"}}>₵</div>
+        </div>
+        {/* Details */}
+        <div style={{marginBottom:20}}>
+          {[
+            ["Item / Service", item.product||item.source||item.description||"—"],
+            ["Date",           item.date||todayS()],
+            item.qty ? ["Quantity",  `${item.qty} units`] : null,
+            item.price ? ["Unit Price", fmt(item.price)] : null,
+            item.customer ? ["Customer",  item.customer] : null,
+            item.category ? ["Category",  item.category] : null,
+          ].filter(Boolean).map(([label,value])=>(
+            <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #1A253540"}}>
+              <span style={{fontSize:13,color:"#4A607A",fontFamily:"'Inter',sans-serif"}}>{label}</span>
+              <span style={{fontSize:14,color:"#F0E8D8",fontFamily:"'EB Garamond',serif"}}>{value}</span>
+            </div>
+          ))}
+        </div>
+        {/* Total */}
+        <div style={{background:"#D4A85315",border:"1px solid #D4A85330",borderRadius:10,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <span style={{fontSize:14,color:"#8FA3BC",fontFamily:"'Inter',sans-serif",textTransform:"uppercase",letterSpacing:1}}>Total</span>
+          <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,color:"#D4A853",fontWeight:700}}>{fmt(total)}</span>
+        </div>
+        {/* Footer */}
+        <div style={{textAlign:"center",fontSize:11,color:"#4A607A",fontFamily:"'Inter',sans-serif",marginTop:8}}>
+          Thank you for your business ✦ Generated by MoneyBook Ghana
+        </div>
+      </div>
+      <div style={{display:"flex",gap:10}}>
+        <Btn full onClick={downloadReceipt} loading={downloading}>⇩ Download Receipt Image</Btn>
+        <Btn variant="ghost" onClick={onClose}>Close</Btn>
+      </div>
+    </Drawer>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
    REPORTS PAGE — real data + trend simulator
 ══════════════════════════════════════════════════════ */
 function ReportsPage({isMobile}){
@@ -1771,8 +2184,19 @@ export default function App(){
   const [active,  setActive] =useState("dashboard");
   const [data,    setData]   =useState(SEED);
   const [menuOpen,setMenuOpen]=useState(false);
+  const [isDark,  setIsDark] =useState(true);
   const w=useW();
   const isM=w<768;
+
+  // Apply theme tokens globally whenever isDark changes
+  useEffect(()=>{
+    const theme = isDark ? DARK : LIGHT;
+    Object.assign(T, theme);
+    document.documentElement.style.setProperty("--mb-bg", theme.bg);
+    document.documentElement.style.setProperty("--mb-surface", theme.surface);
+  },[isDark]);
+
+  const toggleTheme = () => setIsDark(v=>!v);
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{
@@ -1804,6 +2228,7 @@ export default function App(){
     budget:    <BudgetPage    {...pp}/>,
     customers: <CustomersPage isMobile={isM}/>,
     debts:     <DebtsPage     isMobile={isM}/>,
+    goals:     <GoalsPage     isMobile={isM}/>,
     reports:   <ReportsPage   isMobile={isM}/>,
     export:    <ExportPage    isMobile={isM}/>,
   };
@@ -1812,7 +2237,7 @@ export default function App(){
     <>
       <style>{CSS}</style>
       <div style={{fontFamily:"'EB Garamond',serif",background:T.bg,minHeight:"100vh",color:T.cream,display:"flex",flexDirection:isM?"column":"row"}}>
-        {!isM&&<Sidebar active={active} setActive={setActive} user={user} onLogout={async()=>{await supabase.auth.signOut();setUser(null);}}/>}
+        {!isM&&<Sidebar active={active} setActive={setActive} user={user} onLogout={async()=>{await supabase.auth.signOut();setUser(null);}} isDark={isDark} onToggleTheme={toggleTheme}/>}
         {isM &&<MobileHeader active={active} user={user} menuOpen={menuOpen} setMenuOpen={setMenuOpen} setActive={setActive} onLogout={async()=>{await supabase.auth.signOut();setUser(null);}}/>}
         <main style={{marginLeft:isM?0:226,flex:1,padding:isM?"18px 16px 90px":"34px 44px",minHeight:"100vh"}}>
           {pages[active]}
