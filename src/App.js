@@ -1083,6 +1083,7 @@ function SalesPage({isMobile}){
   const [loading,  setLoading] =useState(true);
   const [saving,   setSaving]  =useState(false);
   const [toast,    setToast]   =useState(null);
+  const [receipt,  setReceipt] =useState(null);
   const [search,   setSearch]  =useState("");
   const [dateFrom, setDateFrom]=useState("");
   const [dateTo,   setDateTo]  =useState("");
