@@ -320,6 +320,7 @@ function AuthPage({onAuth}){
   const [mode,setMode]=useState("login");
   const [email,setEmail]=useState("");
   const [pass,setPass]=useState("");
+  const [showPass, setShowPass] = useState(false);
   const [name,setName]=useState("");
   const [biz,setBiz]=useState("");
   const [err,setErr]=useState("");
@@ -401,7 +402,30 @@ function AuthPage({onAuth}){
           <FInput label="Business Name (optional)" placeholder="e.g. MP Web & Automations" value={biz} onChange={e=>setBiz(e.target.value)}/>
         </>}
         <FInput label="Email Address" type="email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
-        <FInput label="Password" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} error={err}/>
+        <Field label="Password">
+  <div style={{position:"relative"}}>
+    <input
+      type={showPass ? "text" : "password"}
+      placeholder="••••••••"
+      value={pass}
+      onChange={e=>setPass(e.target.value)}
+      style={{...S.input, paddingRight:42}}
+    />
+    <button
+      type="button"
+      onClick={()=>setShowPass(v=>!v)}
+      style={{
+        position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+        background:"none", border:"none", cursor:"pointer",
+        color:T.fog, fontSize:16, padding:4, lineHeight:1
+      }}
+      aria-label={showPass ? "Hide password" : "Show password"}
+    >
+      {showPass ? "🙈" : "👁"}
+    </button>
+  </div>
+  {err && <div style={{fontSize:12,color:T.rose,marginTop:4,...S.mono}}>{err}</div>}
+</Field>
         {mode==="login"&&<div style={{textAlign:"right",marginTop:-8,marginBottom:16}}><span style={{fontSize:14,color:T.gold,cursor:"pointer",...S.mono}}>Forgot password?</span></div>}
         <Btn full onClick={submit} loading={loading}>{mode==="login"?"Sign In →":"Create Account →"}</Btn>
         <div style={{marginTop:20,textAlign:"center",fontSize:14,color:T.fog,...S.mono}}>
