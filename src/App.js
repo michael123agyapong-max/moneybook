@@ -30,16 +30,21 @@ const CATEGORY_ICONS = {
 };
 
 /* ── Shared style constants (Code Quality: reuse repeated patterns) ── */
-const S = {
-  card:   { background:T.card, border:`1px solid ${T.rim}`, borderRadius:18 },
-  input:  { width:"100%", padding:"10px 13px", background:"#090D14", border:`1px solid ${T.rim}`, borderRadius:9, color:T.cream, fontSize:15, fontFamily:"'EB Garamond',serif" },
-  label:  { display:"block", fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", textTransform:"uppercase", letterSpacing:1.1, marginBottom:6 },
-  mono:   { fontFamily:"'Inter',sans-serif" },
-  serif:  { fontFamily:"'EB Garamond',serif" },
-  title:  { fontFamily:"'Cormorant Garamond',serif" },
-  editBtn:{ background:`${T.sapphire}18`, border:`1px solid ${T.sapphire}40`, borderRadius:6, padding:"4px 10px", color:T.sapphire, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" },
-  delBtn: { background:`${T.rose}18`, border:`1px solid ${T.rose}40`, borderRadius:6, padding:"4px 10px", color:T.rose, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" },
-};
+const S = new Proxy({}, {
+  get(_, prop){
+    const styles = {
+      card:   { background:T.card, border:`1px solid ${T.rim}`, borderRadius:18 },
+      input:  { width:"100%", padding:"10px 13px", background:"#090D14", border:`1px solid ${T.rim}`, borderRadius:9, color:T.cream, fontSize:15, fontFamily:"'EB Garamond',serif" },
+      label:  { display:"block", fontSize:12, color:T.fog, fontFamily:"'Inter',sans-serif", textTransform:"uppercase", letterSpacing:1.1, marginBottom:6 },
+      mono:   { fontFamily:"'Inter',sans-serif" },
+      serif:  { fontFamily:"'EB Garamond',serif" },
+      title:  { fontFamily:"'Cormorant Garamond',serif" },
+      editBtn:{ background:`${T.sapphire}18`, border:`1px solid ${T.sapphire}40`, borderRadius:6, padding:"4px 10px", color:T.sapphire, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" },
+      delBtn: { background:`${T.rose}18`, border:`1px solid ${T.rose}40`, borderRadius:6, padding:"4px 10px", color:T.rose, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif" },
+    };
+    return styles[prop];
+  }
+});
 
 /* ── Rotating tips ── */
 const TIPS = [
