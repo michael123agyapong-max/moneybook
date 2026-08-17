@@ -509,7 +509,7 @@ function Sidebar({active,setActive,user,onLogout,isDark,onToggleTheme}){
 function MobileHeader({active,user,menuOpen,setMenuOpen,setActive,onLogout}){
   const page=NAV.find(n=>n.id===active);
   return(
-    <div style={{position:"sticky",top:0,zIndex:150,background:T.surface,borderBottom:`1px solid ${T.rim}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+    <div style={{position:"sticky",top:0,zIndex:250,background:T.surface,borderBottom:`1px solid ${T.rim}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
       <div style={{width:32,height:32,borderRadius:9,background:`linear-gradient(135deg,${T.gold},${T.goldDk})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:T.bg}}>₵</div>
       <div style={{flex:1,...S.title,fontSize:19,color:T.cream,fontWeight:700}}>{page?.label||"MoneyBook"}</div>
       <button onClick={()=>setMenuOpen(v=>!v)} style={{background:T.night,border:"none",borderRadius:8,width:34,height:34,color:T.ash,fontSize:16,cursor:"pointer"}}>☰</button>
