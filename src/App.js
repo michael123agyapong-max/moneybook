@@ -514,7 +514,7 @@ function MobileHeader({active,user,menuOpen,setMenuOpen,setActive,onLogout}){
       <div style={{flex:1,...S.title,fontSize:19,color:T.cream,fontWeight:700}}>{page?.label||"MoneyBook"}</div>
       <button onClick={()=>setMenuOpen(v=>!v)} style={{background:T.night,border:"none",borderRadius:8,width:34,height:34,color:T.ash,fontSize:16,cursor:"pointer"}}>☰</button>
       {menuOpen&&(
-        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)"}} onClick={()=>setMenuOpen(false)}>
+        <div style={{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)"}} onClick={()=>setMenuOpen(false)}>
           <div onClick={e=>e.stopPropagation()} style={{position:"absolute",top:0,right:0,bottom:0,width:260,background:T.surface,borderLeft:`1px solid ${T.rim}`,padding:"20px 10px",display:"flex",flexDirection:"column",overflowY:"auto"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0 6px 14px",borderBottom:`1px solid ${T.rim}`,marginBottom:8}}>
               <div style={{...S.title,fontSize:18,color:T.cream,fontWeight:700}}>Menu</div>
