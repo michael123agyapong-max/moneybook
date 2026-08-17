@@ -467,7 +467,7 @@ const NAV=[
 
 function Sidebar({active,setActive,user,onLogout,isDark,onToggleTheme}){
   return(
-    <aside style={{width:226,minHeight:"100vh",background:T.surface,borderRight:`1px solid ${T.rim}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,zIndex:100}}>
+    <aside style={{width:226,height:"100vh",overflowY:"auto",background:T.surface,borderRight:`1px solid ${T.rim}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,zIndex:100}}>
       <div style={{padding:"22px 20px 18px",borderBottom:`1px solid ${T.rim}`}}>
         <div style={{display:"flex",alignItems:"center",gap:11}}>
           <div style={{width:38,height:38,borderRadius:11,background:`linear-gradient(135deg,${T.gold},${T.goldDk})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800,color:T.bg,flexShrink:0}}>₵</div>
@@ -515,7 +515,7 @@ function MobileHeader({active,user,menuOpen,setMenuOpen,setActive,onLogout}){
       <button onClick={()=>setMenuOpen(v=>!v)} style={{background:T.night,border:"none",borderRadius:8,width:34,height:34,color:T.ash,fontSize:16,cursor:"pointer"}}>☰</button>
       {menuOpen&&(
         <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)"}} onClick={()=>setMenuOpen(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{position:"absolute",top:0,right:0,bottom:0,width:260,background:T.surface,borderLeft:`1px solid ${T.rim}`,padding:"20px 10px",display:"flex",flexDirection:"column"}}>
+          <div onClick={e=>e.stopPropagation()} style={{position:"absolute",top:0,right:0,bottom:0,width:260,background:T.surface,borderLeft:`1px solid ${T.rim}`,padding:"20px 10px",display:"flex",flexDirection:"column",overflowY:"auto"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0 6px 14px",borderBottom:`1px solid ${T.rim}`,marginBottom:8}}>
               <div style={{...S.title,fontSize:18,color:T.cream,fontWeight:700}}>Menu</div>
               <button onClick={()=>setMenuOpen(false)} style={{background:"none",border:"none",color:T.fog,fontSize:20,cursor:"pointer"}}>✕</button>
